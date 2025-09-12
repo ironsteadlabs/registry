@@ -50,7 +50,7 @@ func NewPostgreSQL(ctx context.Context, connectionURI string) (*PostgreSQL, erro
 		return nil, fmt.Errorf("failed to acquire connection for migrations: %w", err)
 	}
 	defer conn.Release()
-	
+
 	migrator := NewMigrator(conn.Conn())
 	if err := migrator.Migrate(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run database migrations: %w", err)
@@ -221,7 +221,7 @@ func (db *PostgreSQL) GetByServerID(ctx context.Context, serverID string) (*apiv
 	query := `
 		SELECT value
 		FROM servers
-		WHERE server_id = $1 AND (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'is_latest')::boolean = true
+		WHERE (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'serverId') = $1 AND (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'is_latest')::boolean = true
 		ORDER BY (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'published_at')::timestamp DESC
 		LIMIT 1
 	`
@@ -255,7 +255,7 @@ func (db *PostgreSQL) GetByServerIDAndVersion(ctx context.Context, serverID stri
 	query := `
 		SELECT value
 		FROM servers
-		WHERE server_id = $1 AND value->>'version' = $2
+		WHERE (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'serverId') = $1 AND value->>'version' = $2
 		LIMIT 1
 	`
 
@@ -288,7 +288,7 @@ func (db *PostgreSQL) GetAllVersionsByServerID(ctx context.Context, serverID str
 	query := `
 		SELECT value
 		FROM servers
-		WHERE server_id = $1
+		WHERE (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'serverId') = $1
 		ORDER BY (value->'_meta'->'io.modelcontextprotocol.registry/official'->>'published_at')::timestamp DESC
 	`
 
@@ -351,13 +351,13 @@ func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON
 		return nil, fmt.Errorf("failed to marshal server JSON: %w", err)
 	}
 
-	// Insert into servers table with new schema
+	// Insert into servers table with new schema (only version_id column, serverId is in JSON)
 	query := `
-		INSERT INTO servers (server_id, version_id, value)
-		VALUES ($1, $2, $3)
+		INSERT INTO servers (version_id, value)
+		VALUES ($1, $2)
 	`
 
-	_, err = db.pool.Exec(ctx, query, serverID, versionID, valueJSON)
+	_, err = db.pool.Exec(ctx, query, versionID, valueJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert server: %w", err)
 	}

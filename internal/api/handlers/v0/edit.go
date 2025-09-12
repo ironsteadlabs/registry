@@ -55,7 +55,7 @@ func RegisterEditEndpoints(api huma.API, registry service.RegistryService, cfg *
 
 		// Get current server to check permissions against existing name
 		currentServer, err := registry.GetByServerIDAndVersion(input.ServerID, input.Version)
-		
+
 		if err != nil {
 			if errors.Is(err, database.ErrNotFound) {
 				return nil, huma.Error404NotFound("Server not found")
@@ -83,7 +83,7 @@ func RegisterEditEndpoints(api huma.API, registry service.RegistryService, cfg *
 		if versionID == "" {
 			return nil, huma.Error500InternalServerError("Server version ID not found in metadata", nil)
 		}
-		
+
 		updatedServer, err := registry.EditServer(versionID, input.Body)
 		if err != nil {
 			if errors.Is(err, database.ErrNotFound) {

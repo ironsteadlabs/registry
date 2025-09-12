@@ -111,7 +111,7 @@ func RegisterServersEndpoints(api huma.API, registry service.RegistryService) {
 		// Get the server details from the registry service
 		var serverDetail *apiv0.ServerJSON
 		var err error
-		
+
 		if input.Version != "" {
 			// Get specific version by server_id and version
 			serverDetail, err = registry.GetByServerIDAndVersion(input.ServerID, input.Version)
@@ -119,7 +119,7 @@ func RegisterServersEndpoints(api huma.API, registry service.RegistryService) {
 			// Get latest version by server_id
 			serverDetail, err = registry.GetByServerID(input.ServerID)
 		}
-		
+
 		if err != nil {
 			if err.Error() == "record not found" || errors.Is(err, database.ErrNotFound) {
 				return nil, huma.Error404NotFound("Server not found")

@@ -78,7 +78,7 @@ func TestImportService_HTTPFile(t *testing.T) {
 			Meta: &apiv0.ServerMeta{
 				Official: &apiv0.RegistryExtensions{
 					ServerID:    "server-id-test",
-					VersionID:          "test-id-2",
+					VersionID:   "test-id-2",
 					PublishedAt: time.Now(),
 					UpdatedAt:   time.Now(),
 					IsLatest:    true,
@@ -122,7 +122,7 @@ func TestImportService_RegistryAPI(t *testing.T) {
 			Meta: &apiv0.ServerMeta{
 				Official: &apiv0.RegistryExtensions{
 					ServerID:    "server-id-test",
-					VersionID:          "api-test-id-1",
+					VersionID:   "api-test-id-1",
 					PublishedAt: time.Now(),
 					UpdatedAt:   time.Now(),
 					IsLatest:    true,
@@ -141,7 +141,7 @@ func TestImportService_RegistryAPI(t *testing.T) {
 			Meta: &apiv0.ServerMeta{
 				Official: &apiv0.RegistryExtensions{
 					ServerID:    "server-id-test",
-					VersionID:          "api-test-id-2",
+					VersionID:   "api-test-id-2",
 					PublishedAt: time.Now(),
 					UpdatedAt:   time.Now(),
 					IsLatest:    true,

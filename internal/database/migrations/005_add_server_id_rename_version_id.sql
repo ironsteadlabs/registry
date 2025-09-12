@@ -1,20 +1,20 @@
--- Migration to add server_id and rename id to version_id  
+-- Migration to rename id to version_id and update JSON metadata
 -- This implements the server ID consistency changes from GitHub issue #396
 -- 
 -- Current schema: servers(id VARCHAR, value JSONB)
--- Target schema: servers(server_id UUID, version_id VARCHAR, value JSONB)
--- where server_id is consistent across versions, version_id is unique per version
+-- Target schema: servers(version_id VARCHAR, value JSONB)
+-- JSON metadata changes: 
+--   - rename "id" to "versionId" 
+--   - add "serverId" (consistent across versions of same server)
 
 BEGIN;
 
--- Add the new server_id column (UUID)
-ALTER TABLE servers ADD COLUMN server_id UUID;
-
--- Add the new version_id column (will replace current id column) 
+-- Add the new version_id column
 ALTER TABLE servers ADD COLUMN version_id VARCHAR(255);
 
--- Create a temporary function to generate consistent server_id values for existing records
--- All versions of the same server (same name) will get the same server_id
+-- Create a temporary function to:
+-- 1. Migrate id -> version_id column
+-- 2. Update JSON metadata to add serverId and rename id to versionId
 CREATE OR REPLACE FUNCTION migrate_to_server_version_ids()
 RETURNS VOID AS $$
 DECLARE
@@ -22,6 +22,8 @@ DECLARE
     server_name TEXT;
     server_id_map JSONB := '{}';
     new_server_id UUID;
+    updated_meta JSONB;
+    updated_value JSONB;
 BEGIN
     -- Iterate through all records and assign server_id and version_id
     FOR rec IN SELECT id, value FROM servers ORDER BY id LOOP
@@ -37,11 +39,30 @@ BEGIN
             server_id_map := jsonb_set(server_id_map, ARRAY[server_name], to_jsonb(new_server_id::TEXT));
         END IF;
         
-        -- Update the record with server_id and version_id (version_id = old id)
+        -- Update the JSON metadata
+        updated_meta := rec.value->'_meta'->'io.modelcontextprotocol.registry/official';
+        
+        -- Add serverId and rename id to versionId
+        updated_meta := updated_meta || jsonb_build_object(
+            'serverId', new_server_id::TEXT,
+            'versionId', updated_meta->>'id'
+        );
+        
+        -- Remove the old 'id' field
+        updated_meta := updated_meta - 'id';
+        
+        -- Update the full value with new metadata
+        updated_value := jsonb_set(
+            rec.value,
+            '{_meta,io.modelcontextprotocol.registry/official}',
+            updated_meta
+        );
+        
+        -- Update the record with version_id and updated JSON
         UPDATE servers 
         SET 
-            server_id = new_server_id,
-            version_id = rec.id
+            version_id = rec.id,
+            value = updated_value
         WHERE id = rec.id;
     END LOOP;
 END;
@@ -53,8 +74,7 @@ SELECT migrate_to_server_version_ids();
 -- Drop the temporary function
 DROP FUNCTION migrate_to_server_version_ids();
 
--- Make both new columns NOT NULL now that all records have values
-ALTER TABLE servers ALTER COLUMN server_id SET NOT NULL;
+-- Make version_id NOT NULL now that all records have values
 ALTER TABLE servers ALTER COLUMN version_id SET NOT NULL;
 
 -- Drop the old id column (replaced by version_id)
@@ -63,14 +83,8 @@ ALTER TABLE servers DROP COLUMN id;
 -- Make version_id the new primary key
 ALTER TABLE servers ADD CONSTRAINT servers_pkey PRIMARY KEY (version_id);
 
--- Update existing indexes
+-- Update existing indexes to use version_id instead of id
 DROP INDEX IF EXISTS idx_servers_id;
-
--- Create new indexes
-CREATE INDEX idx_servers_server_id ON servers(server_id);
-CREATE UNIQUE INDEX idx_servers_server_id_version ON servers(server_id, (value->>'version'));
-
--- Update the existing indexes to use the new column names
--- Note: The JSONB indexes remain the same since they reference the value column
+CREATE INDEX idx_servers_version_id ON servers(version_id);
 
 COMMIT;

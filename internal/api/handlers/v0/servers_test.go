@@ -388,11 +388,11 @@ func TestServersDetailEndpoint(t *testing.T) {
 	assert.NoError(t, err)
 
 	testCases := []struct {
-		name              string
-		serverID          string
-		expectedStatus    int
-		expectedServer    *apiv0.ServerJSON
-		expectedError     string
+		name           string
+		serverID       string
+		expectedStatus int
+		expectedServer *apiv0.ServerJSON
+		expectedError  string
 	}{
 		{
 			name:           "successful get server detail",

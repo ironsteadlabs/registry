@@ -20,7 +20,6 @@ import (
 	"github.com/modelcontextprotocol/registry/pkg/model"
 )
 
-
 func TestEditServerEndpoint(t *testing.T) {
 	// Create registry service and insert a common test server
 	registryService := service.NewRegistryService(database.NewMemoryDB(), config.NewConfig())
@@ -86,13 +85,13 @@ func TestEditServerEndpoint(t *testing.T) {
 	deletedServerID := deletedPublished.Meta.Official.ServerID
 
 	testCases := []struct {
-		name              string
-		authHeader        string
-		requestBody       interface{}
-		serverID          string
-		version           string
-		expectedStatus    int
-		expectedError     string
+		name           string
+		authHeader     string
+		requestBody    interface{}
+		serverID       string
+		version        string
+		expectedStatus int
+		expectedError  string
 	}{
 		{
 			name: "successful edit with valid token and permissions",
@@ -135,9 +134,9 @@ func TestEditServerEndpoint(t *testing.T) {
 			name:       "invalid authorization header format",
 			authHeader: "InvalidFormat token123",
 			requestBody: apiv0.ServerJSON{
-				Name:          "io.github.domdomegg/test-server",
-				Description:   "Test server",
-				Version: "1.0.0",
+				Name:        "io.github.domdomegg/test-server",
+				Description: "Test server",
+				Version:     "1.0.0",
 			},
 			serverID:       testServerID,
 			version:        "1.0.0",
@@ -148,9 +147,9 @@ func TestEditServerEndpoint(t *testing.T) {
 			name:       "invalid token",
 			authHeader: "Bearer invalid-token",
 			requestBody: apiv0.ServerJSON{
-				Name:          "io.github.domdomegg/test-server",
-				Description:   "Test server",
-				Version: "1.0.0",
+				Name:        "io.github.domdomegg/test-server",
+				Description: "Test server",
+				Version:     "1.0.0",
 			},
 			serverID:       testServerID,
 			version:        "1.0.0",
@@ -171,9 +170,9 @@ func TestEditServerEndpoint(t *testing.T) {
 				return "Bearer " + token
 			}(),
 			requestBody: apiv0.ServerJSON{
-				Name:          "io.github.domdomegg/test-server",
-				Description:   "Updated test server",
-				Version: "1.0.0",
+				Name:        "io.github.domdomegg/test-server",
+				Description: "Updated test server",
+				Version:     "1.0.0",
 			},
 			serverID:       testServerID,
 			version:        "1.0.0",
@@ -194,9 +193,9 @@ func TestEditServerEndpoint(t *testing.T) {
 				return "Bearer " + token
 			}(),
 			requestBody: apiv0.ServerJSON{
-				Name:          "io.github.other/test-server",
-				Description:   "Updated test server",
-				Version: "1.0.0",
+				Name:        "io.github.other/test-server",
+				Description: "Updated test server",
+				Version:     "1.0.0",
 			},
 			serverID:       otherServerID,
 			version:        "1.0.0",
@@ -217,9 +216,9 @@ func TestEditServerEndpoint(t *testing.T) {
 				return "Bearer " + token
 			}(),
 			requestBody: apiv0.ServerJSON{
-				Name:          "io.github.domdomegg/nonexistent-server",
-				Description:   "Updated test server",
-				Version: "1.0.0",
+				Name:        "io.github.domdomegg/nonexistent-server",
+				Description: "Updated test server",
+				Version:     "1.0.0",
 			},
 			serverID:       "550e8400-e29b-41d4-a716-446655440999", // Non-existent ID
 			version:        "1.0.0",
@@ -240,9 +239,9 @@ func TestEditServerEndpoint(t *testing.T) {
 				return "Bearer " + token
 			}(),
 			requestBody: apiv0.ServerJSON{
-				Name:          "invalid-name-format", // Missing namespace/name format
-				Description:   "Test server",
-				Version: "1.0.0",
+				Name:        "invalid-name-format", // Missing namespace/name format
+				Description: "Test server",
+				Version:     "1.0.0",
 			},
 			serverID:       testServerID,
 			version:        "1.0.0",
@@ -302,7 +301,6 @@ func TestEditServerEndpoint(t *testing.T) {
 				requestBody, err = json.Marshal(tc.requestBody)
 				assert.NoError(t, err)
 			}
-
 
 			// Create request
 			url := "/v0/servers/" + tc.serverID
