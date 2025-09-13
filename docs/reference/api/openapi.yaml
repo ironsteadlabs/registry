@@ -525,16 +525,22 @@ components:
                   type: object
                   description: Registry-specific metadata managed by the MCP registry system
                   required:
-                    - id
+                    - serverId
+                    - versionId
                     - published_at
                     - updated_at
                     - is_latest
                   properties:
-                    id:
+                    serverId:
                       type: string
                       format: uuid
-                      description: Unique registry identifier for this server entry
+                      description: Consistent ID across all versions of a server
                       example: "550e8400-e29b-41d4-a716-446655440000"
+                    versionId:
+                      type: string
+                      format: uuid
+                      description: Unique ID for this specific version
+                      example: "773f9b2e-1a47-4c8d-b5e6-2f8d9c4a7b3e"
                     published_at:
                       type: string
                       format: date-time
