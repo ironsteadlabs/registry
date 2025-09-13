@@ -71,8 +71,8 @@ func PublishCommand(args []string) error {
 	}
 
 	_, _ = fmt.Fprintln(os.Stdout, "✓ Successfully published")
-	if serverID := response.GetID(); serverID != "" {
-		_, _ = fmt.Fprintf(os.Stdout, "✓ Server Id %s", serverID)
+	if serverID := response.GetServerID(); serverID != "" {
+		_, _ = fmt.Fprintf(os.Stdout, "✓ Server Id %s version %s\n", serverID, response.Version)
 	}
 
 	return nil

@@ -47,7 +47,7 @@ type Metadata struct {
 	Count      int    `json:"count"`
 }
 
-func (s *ServerJSON) GetID() string {
+func (s *ServerJSON) GetServerID() string {
 	if s.Meta != nil && s.Meta.Official != nil {
 		return s.Meta.Official.ServerID
 	}
