@@ -39,7 +39,7 @@ You can also add custom metadata to servers using the `_meta` field. For example
   "version": "1.0.0",
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "weather-mcp-server",
       "version": "1.0.0"
     }

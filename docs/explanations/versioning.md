@@ -145,7 +145,7 @@ Existing servers with non-semantic versions will continue to work without change
   "version": "1.2.3",
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "@myorg/server",
       "version": "1.2.3"
     }
@@ -160,7 +160,7 @@ Existing servers with non-semantic versions will continue to work without change
   "version": "1.2.3-1",
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "@myorg/server", 
       "version": "1.2.3"
     }
@@ -196,12 +196,12 @@ Version strategy options:
   "version": "1.3.0",
   "packages": [
     {
-      "registry_type": "npm",
+      "registryType": "npm",
       "identifier": "@myorg/server",
       "version": "1.3.0"
     },
     {
-      "registry_type": "oci",
+      "registryType": "oci",
       "identifier": "myorg/server",
       "version": "1.2.5"
     }

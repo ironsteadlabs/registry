@@ -35,7 +35,7 @@ type ServerJSON struct {
 	Status      model.Status      `json:"status,omitempty" minLength:"1"`
 	Repository  model.Repository  `json:"repository,omitempty"`
 	Version     string            `json:"version"`
-	WebsiteURL  string            `json:"website_url,omitempty"`
+	WebsiteURL  string            `json:"websiteUrl,omitempty"`
 	Packages    []model.Package   `json:"packages,omitempty"`
 	Remotes     []model.Transport `json:"remotes,omitempty"`
 	Meta        *ServerMeta       `json:"_meta,omitempty"`
