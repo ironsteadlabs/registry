@@ -94,12 +94,15 @@ cat > "$PAYLOAD_FILE" << EOF
       "identifier": "test-mcp-server",
       "version": "1.0.$(date +%s)",
       "runtimeHint": "node",
+      "transport": {
+        "type": "stdio"
+      },
       "runtimeArguments": [
         {
           "type": "positional",
           "name": "config",
           "description": "Configuration file path",
-          "format": "filepath",
+          "format": "file_path",
           "isRequired": false,
           "default": "./config.json"
         }
