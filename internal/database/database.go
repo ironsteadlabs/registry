@@ -40,8 +40,10 @@ type Database interface {
 	GetByServerIDAndVersion(ctx context.Context, serverID string, version string) (*apiv0.ServerJSON, error)
 	// Retrieve all versions of a server by server ID
 	GetAllVersionsByServerID(ctx context.Context, serverID string) ([]*apiv0.ServerJSON, error)
-	// CreateServer adds a new server to the database
-	CreateServer(ctx context.Context, server *apiv0.ServerJSON) (*apiv0.ServerJSON, error)
+	// CreateServer atomically publishes a new server version, optionally unmarking a previous latest version
+	// If oldLatestVersionID is provided, it will be updated to set IsLatest=false before creating the new version
+	// This operation happens within a transaction with an advisory lock to prevent race conditions
+	CreateServer(ctx context.Context, newServer *apiv0.ServerJSON, oldLatestVersionID *string) (*apiv0.ServerJSON, error)
 	// UpdateServer updates an existing server record
 	UpdateServer(ctx context.Context, id string, server *apiv0.ServerJSON) (*apiv0.ServerJSON, error)
 	// WithPublishLock executes a function with an exclusive lock for publishing a server

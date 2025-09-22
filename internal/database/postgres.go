@@ -328,8 +328,9 @@ func (db *PostgreSQL) GetAllVersionsByServerID(ctx context.Context, serverID str
 	return results, nil
 }
 
-// CreateServer adds a new server to the database
-func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON) (*apiv0.ServerJSON, error) {
+// CreateServer atomically publishes a new server version, optionally unmarking a previous latest version
+// Must be called within WithPublishLock to ensure proper serialization
+func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON, oldLatestVersionID *string) (*apiv0.ServerJSON, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -346,21 +347,51 @@ func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON
 		return nil, fmt.Errorf("server must have both ServerID and VersionID in registry metadata")
 	}
 
+	// Begin a transaction for atomicity of UPDATE + INSERT
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	// If there's a previous latest version, unmark it
+	if oldLatestVersionID != nil && *oldLatestVersionID != "" {
+		updateQuery := `
+			UPDATE servers
+			SET value = jsonb_set(
+				value,
+				'{_meta,io.modelcontextprotocol.registry/official,isLatest}',
+				'false'::jsonb
+			)
+			WHERE version_id = $1
+		`
+		_, err := tx.Exec(ctx, updateQuery, *oldLatestVersionID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmark previous latest version: %w", err)
+		}
+	}
+
 	// Marshal the complete server to JSONB
 	valueJSON, err := json.Marshal(server)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal server JSON: %w", err)
 	}
 
-	// Insert into servers table with new schema (only version_id column, serverId is in JSON)
-	query := `
+	// Insert the new version
+	insertQuery := `
 		INSERT INTO servers (version_id, value)
 		VALUES ($1, $2)
 	`
-
-	_, err = db.pool.Exec(ctx, query, versionID, valueJSON)
+	_, err = tx.Exec(ctx, insertQuery, versionID, valueJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert server: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return server, nil

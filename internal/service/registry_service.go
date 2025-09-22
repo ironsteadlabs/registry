@@ -176,19 +176,13 @@ func (s *registryServiceImpl) Publish(req apiv0.ServerJSON) (*apiv0.ServerJSON, 
 			) > 0
 		}
 
-		// Mark previous latest as no longer latest BEFORE creating new version
-		// This prevents violating the unique constraint on isLatest
+		// Prepare the old latest version ID if we need to unmark it
+		var oldLatestVersionID *string
 		if isNewLatest && existingLatest != nil {
-			var existingLatestVersionID string
 			if existingLatest.Meta != nil && existingLatest.Meta.Official != nil {
-				existingLatestVersionID = existingLatest.Meta.Official.VersionID
-			}
-			if existingLatestVersionID != "" {
-				// Update the existing server to set isLatest = false
-				existingLatest.Meta.Official.IsLatest = false
-				existingLatest.Meta.Official.UpdatedAt = time.Now()
-				if _, err := s.db.UpdateServer(lockCtx, existingLatestVersionID, existingLatest); err != nil {
-					return nil, err
+				versionID := existingLatest.Meta.Official.VersionID
+				if versionID != "" {
+					oldLatestVersionID = &versionID
 				}
 			}
 		}
@@ -196,13 +190,8 @@ func (s *registryServiceImpl) Publish(req apiv0.ServerJSON) (*apiv0.ServerJSON, 
 		// Create complete server with metadata
 		server := s.createServerWithMetadata(serverJSON, existingServerVersions, publishTime, isNewLatest)
 
-		// Create server in database
-		serverRecord, err := s.db.CreateServer(lockCtx, &server)
-		if err != nil {
-			return nil, err
-		}
-
-		return serverRecord, nil
+		// Publish server version atomically (unmarks old latest and creates new version in one transaction)
+		return s.db.CreateServer(lockCtx, &server, oldLatestVersionID)
 	})
 
 	if err != nil {
