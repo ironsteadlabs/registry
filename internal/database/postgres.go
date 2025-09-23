@@ -15,6 +15,10 @@ import (
 	apiv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 )
 
+type contextKey string
+
+const publishTxKey contextKey = "publishTx"
+
 // PostgreSQL is an implementation of the Database interface using PostgreSQL
 type PostgreSQL struct {
 	pool *pgxpool.Pool
@@ -328,8 +332,9 @@ func (db *PostgreSQL) GetAllVersionsByServerID(ctx context.Context, serverID str
 	return results, nil
 }
 
-// CreateServer atomically publishes a new server version, optionally unmarking a previous latest version
-// Must be called within WithPublishLock to ensure proper serialization
+// CreateServer publishes a new server version, optionally unmarking a previous latest version
+// MUST be called within WithPublishLock to ensure proper serialization and prevent race conditions
+// Executes UPDATE and INSERT atomically using the transaction from the context
 func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON, oldLatestVersionID *string) (*apiv0.ServerJSON, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -347,14 +352,11 @@ func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON
 		return nil, fmt.Errorf("server must have both ServerID and VersionID in registry metadata")
 	}
 
-	// Begin a transaction for atomicity of UPDATE + INSERT
-	tx, err := db.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	// Get transaction from context (must be called within WithPublishLock)
+	tx, ok := ctx.Value(publishTxKey).(pgx.Tx)
+	if !ok {
+		return nil, fmt.Errorf("CreateServer must be called within WithPublishLock")
 	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
 
 	// If there's a previous latest version, unmark it
 	if oldLatestVersionID != nil && *oldLatestVersionID != "" {
@@ -387,11 +389,6 @@ func (db *PostgreSQL) CreateServer(ctx context.Context, server *apiv0.ServerJSON
 	_, err = tx.Exec(ctx, insertQuery, versionID, valueJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert server: %w", err)
-	}
-
-	// Commit the transaction
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return server, nil
@@ -440,34 +437,57 @@ func (db *PostgreSQL) WithPublishLock(ctx context.Context, serverName string, fn
 		return ctx.Err()
 	}
 
-	// Begin a transaction
-	tx, err := db.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
-
-	// Acquire advisory lock based on server name hash
-	// Using pg_advisory_xact_lock which auto-releases on transaction end
 	lockID := hashServerName(serverName)
-	_, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockID)
-	if err != nil {
-		return fmt.Errorf("failed to acquire publish lock: %w", err)
-	}
+	backoff := 10 * time.Millisecond
 
-	// Execute the function
-	if err := fn(ctx); err != nil {
-		return err
-	}
+	for {
+		// Begin a transaction
+		tx, err := db.pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
 
-	// Commit the transaction (which also releases the lock)
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
+		// Try to acquire advisory lock (non-blocking)
+		// Using pg_try_advisory_xact_lock which returns immediately
+		var acquired bool
+		err = tx.QueryRow(ctx, "SELECT pg_try_advisory_xact_lock($1)", lockID).Scan(&acquired)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+			return fmt.Errorf("failed to acquire publish lock: %w", err)
+		}
 
-	return nil
+		if !acquired {
+			// Lock not available, rollback and retry
+			_ = tx.Rollback(ctx)
+
+			// Check if context is still valid
+			if ctx.Err() != nil {
+				return fmt.Errorf("failed to acquire publish lock: timeout: %w", ctx.Err())
+			}
+
+			// Wait before retrying
+			time.Sleep(backoff)
+			backoff = min(backoff*2, 500*time.Millisecond)
+			continue
+		}
+
+		// Lock acquired! Store transaction in context
+		ctxWithTx := context.WithValue(ctx, publishTxKey, tx)
+
+		// Execute the function with the transaction-aware context
+		fnErr := fn(ctxWithTx)
+		if fnErr != nil {
+			_ = tx.Rollback(ctx)
+			return fnErr
+		}
+
+		// Commit the transaction (which also releases the lock)
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit transaction: %w", err)
+		}
+
+		return nil
+	}
 }
 
 // hashServerName creates a consistent hash of the server name for advisory locking

@@ -123,7 +123,8 @@ func (s *registryServiceImpl) GetAllVersionsByServerID(serverID string) ([]apiv0
 // Publish publishes a server with flattened _meta extensions
 func (s *registryServiceImpl) Publish(req apiv0.ServerJSON) (*apiv0.ServerJSON, error) {
 	// Create a timeout context for the database operation
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Longer timeout to handle high concurrency scenarios where operations are serialized by advisory locks
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	// Validate the request
