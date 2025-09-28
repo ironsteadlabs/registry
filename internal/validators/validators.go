@@ -374,6 +374,20 @@ func collectAvailableVariables(pkg *model.Package) []string {
 	return variables
 }
 
+// collectRemoteTransportVariables extracts available variable names from a remote transport
+func collectRemoteTransportVariables(transport *model.Transport) []string {
+	var variables []string
+
+	// Add variable names from the Variables map
+	for variableName := range transport.Variables {
+		if variableName != "" {
+			variables = append(variables, variableName)
+		}
+	}
+
+	return variables
+}
+
 // validatePackageTransport validates a package's transport with templating support
 func validatePackageTransport(transport *model.Transport, availableVariables []string) error {
 	// Validate transport type is supported
@@ -405,7 +419,7 @@ func validatePackageTransport(transport *model.Transport, availableVariables []s
 	}
 }
 
-// validateRemoteTransport validates a remote transport (no templating allowed)
+// validateRemoteTransport validates a remote transport with optional templating
 func validateRemoteTransport(obj *model.Transport) error {
 	// Validate transport type is supported - remotes only support streamable-http and sse
 	switch obj.Type {
@@ -414,7 +428,22 @@ func validateRemoteTransport(obj *model.Transport) error {
 		if obj.URL == "" {
 			return fmt.Errorf("url is required for %s transport type", obj.Type)
 		}
-		// Validate URL format (no templates allowed for remotes, no localhost)
+
+		// Collect available variables from the transport's Variables field
+		availableVariables := collectRemoteTransportVariables(obj)
+
+		// Validate URL format with template variable support
+		if !IsValidTemplatedURL(obj.URL, availableVariables, true) { // true = allow templates for remotes
+			// Check if it's a template variable issue or basic URL issue
+			templateVars := extractTemplateVariables(obj.URL)
+			if len(templateVars) > 0 {
+				return fmt.Errorf("%w: template variables in URL %s reference undefined variables. Available variables: %v",
+					ErrInvalidRemoteURL, obj.URL, availableVariables)
+			}
+			return fmt.Errorf("%w: %s", ErrInvalidRemoteURL, obj.URL)
+		}
+
+		// Additional check: reject localhost URLs for remotes (like the old IsValidRemoteURL did)
 		if !IsValidRemoteURL(obj.URL) {
 			return fmt.Errorf("%w: %s", ErrInvalidRemoteURL, obj.URL)
 		}
@@ -540,8 +569,11 @@ func validateWebsiteURLNamespaceMatch(serverJSON apiv0.ServerJSON) error {
 
 // validateRemoteURLMatchesNamespace checks if a remote URL's hostname matches the publisher domain from the namespace
 func validateRemoteURLMatchesNamespace(remoteURL, namespace string) error {
+	// Replace template variables with placeholders before parsing
+	testURL := replaceTemplateVariables(remoteURL)
+
 	// Parse the URL to extract the hostname
-	parsedURL, err := url.Parse(remoteURL)
+	parsedURL, err := url.Parse(testURL)
 	if err != nil {
 		return fmt.Errorf("invalid URL format: %w", err)
 	}
