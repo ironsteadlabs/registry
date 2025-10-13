@@ -315,10 +315,7 @@ components:
           description: A hint to help clients determine the appropriate runtime for the package. This field should be provided when `runtimeArguments` are present.
           examples: [npx, uvx, docker, dnx]
         transport:
-          anyOf:
-            - $ref: '#/components/schemas/StdioTransport'
-            - $ref: '#/components/schemas/StreamableHttpTransport'
-            - $ref: '#/components/schemas/SseTransport'
+          $ref: '#/components/schemas/LocalTransport'
           description: Transport protocol configuration for the package
         runtimeArguments:
           type: array
@@ -474,7 +471,7 @@ components:
           example: "streamable-http"
         url:
           type: string
-          description: URL template for the streamable-http transport. Variables in {curly_braces} reference argument valueHints, argument names, or environment variable names. After variable substitution, this should produce a valid URI.
+          description: "URL template for the streamable-http transport. Variables in {curly_braces} are resolved based on context: In Package context, they reference argument valueHints, argument names, or environment variable names from the parent Package. In Remote context, they reference variables from the transport's 'variables' object. After variable substitution, this should produce a valid URI."
           example: "https://api.example.com/mcp"
         headers:
           type: array
@@ -496,13 +493,42 @@ components:
         url:
           type: string
           format: uri
-          description: Server-Sent Events endpoint URL
+          description: "Server-Sent Events endpoint URL template. Variables in {curly_braces} are resolved based on context: In Package context, they reference argument valueHints, argument names, or environment variable names from the parent Package. In Remote context, they reference variables from the transport's 'variables' object. After variable substitution, this should produce a valid URI."
           example: "https://mcp-fs.example.com/sse"
         headers:
           type: array
           description: HTTP headers to include
           items:
             $ref: '#/components/schemas/KeyValueInput'
+
+    LocalTransport:
+      anyOf:
+        - $ref: '#/components/schemas/StdioTransport'
+        - $ref: '#/components/schemas/StreamableHttpTransport'
+        - $ref: '#/components/schemas/SseTransport'
+      description: Transport protocol configuration for local/package context
+
+    RemoteTransport:
+      anyOf:
+        - allOf:
+            - $ref: '#/components/schemas/StreamableHttpTransport'
+            - type: object
+              properties:
+                variables:
+                  type: object
+                  description: "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties."
+                  additionalProperties:
+                    $ref: '#/components/schemas/Input'
+        - allOf:
+            - $ref: '#/components/schemas/SseTransport'
+            - type: object
+              properties:
+                variables:
+                  type: object
+                  description: "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties."
+                  additionalProperties:
+                    $ref: '#/components/schemas/Input'
+      description: Transport protocol configuration for remote context - extends StreamableHttpTransport or SseTransport with variables
 
     Icon:
       type: object
@@ -592,9 +618,7 @@ components:
         remotes:
           type: array
           items:
-            anyOf:
-              - $ref: '#/components/schemas/StreamableHttpTransport'
-              - $ref: '#/components/schemas/SseTransport'
+            $ref: '#/components/schemas/RemoteTransport'
         _meta:
           type: object
           description: "Extension metadata using reverse DNS namespacing for vendor-specific data"
