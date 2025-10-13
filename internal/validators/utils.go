@@ -132,8 +132,11 @@ func IsValidRemoteURL(rawURL string) bool {
 		return false
 	}
 
+	// Replace template variables with placeholders before parsing for localhost check
+	testURL := replaceTemplateVariables(rawURL)
+
 	// Parse the URL to check for localhost restriction
-	u, err := url.Parse(rawURL)
+	u, err := url.Parse(testURL)
 	if err != nil {
 		return false
 	}
@@ -149,7 +152,7 @@ func IsValidRemoteURL(rawURL string) bool {
 
 // IsValidTemplatedURL validates a URL with template variables against available variables
 // For packages: validates that template variables reference package arguments or environment variables
-// For remotes: disallows template variables entirely
+// For remotes: validates that template variables reference the transport's variables map
 func IsValidTemplatedURL(rawURL string, availableVariables []string, allowTemplates bool) bool {
 	// First check basic URL structure
 	if !IsValidURL(rawURL) {
