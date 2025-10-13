@@ -153,7 +153,7 @@ func IsValidRemoteURL(rawURL string) bool {
 // IsValidTemplatedURL validates a URL with template variables against available variables
 // For packages: validates that template variables reference package arguments or environment variables
 // For remotes: validates that template variables reference the transport's variables map
-func IsValidTemplatedURL(rawURL string, availableVariables []string, allowTemplates bool) bool {
+func IsValidTemplatedURL(rawURL string, availableVariables []string) bool {
 	// First check basic URL structure
 	if !IsValidURL(rawURL) {
 		return false
@@ -165,11 +165,6 @@ func IsValidTemplatedURL(rawURL string, availableVariables []string, allowTempla
 	// If no templates are found, it's a valid static URL
 	if len(templateVars) == 0 {
 		return true
-	}
-
-	// If templates are not allowed (e.g., for remotes), reject URLs with templates
-	if !allowTemplates {
-		return false
 	}
 
 	// Validate that all template variables are available

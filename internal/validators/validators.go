@@ -404,7 +404,7 @@ func validatePackageTransport(transport *model.Transport, availableVariables []s
 			return fmt.Errorf("url is required for %s transport type", transport.Type)
 		}
 		// Validate URL format with template variable support
-		if !IsValidTemplatedURL(transport.URL, availableVariables, true) {
+		if !IsValidTemplatedURL(transport.URL, availableVariables) {
 			// Check if it's a template variable issue or basic URL issue
 			templateVars := extractTemplateVariables(transport.URL)
 			if len(templateVars) > 0 {
@@ -433,7 +433,7 @@ func validateRemoteTransport(obj *model.Transport) error {
 		availableVariables := collectRemoteTransportVariables(obj)
 
 		// Validate URL format with template variable support
-		if !IsValidTemplatedURL(obj.URL, availableVariables, true) { // true = allow templates for remotes
+		if !IsValidTemplatedURL(obj.URL, availableVariables) {
 			// Check if it's a template variable issue or basic URL issue
 			templateVars := extractTemplateVariables(obj.URL)
 			if len(templateVars) > 0 {
