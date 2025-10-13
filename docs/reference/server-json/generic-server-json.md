@@ -701,6 +701,29 @@ This example demonstrates URL templating for remote servers, useful for multi-te
 
 Clients configure the tenant identifier, and the `{tenant_id}` variable in the URL gets replaced with the provided variable value to connect to the appropriate tenant endpoint (e.g., `https://anonymous.modelcontextprotocol.io/mcp/us-cell1` or `https://anonymous.modelcontextprotocol.io/mcp/emea-cell1`).
 
+The same URL templating works with SSE transport:
+
+```json
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.modelcontextprotocol.anonymous/events-server",
+  "description": "MCP server using SSE with tenant-specific endpoints",
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "sse",
+      "url": "https://events.anonymous.modelcontextprotocol.io/sse/{tenant_id}",
+      "variables": {
+        "tenant_id": {
+          "description": "Tenant identifier",
+          "isRequired": true
+        }
+      }
+    }
+  ]
+}
+```
+
 ### Local Server with URL Templating
 
 This example demonstrates URL templating for local/package servers, where variables reference parent Package arguments or environment variables:
