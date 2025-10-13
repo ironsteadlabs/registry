@@ -510,25 +510,17 @@ components:
       description: Transport protocol configuration for local/package context
 
     RemoteTransport:
-      anyOf:
-        - allOf:
+      allOf:
+        - anyOf:
             - $ref: '#/components/schemas/StreamableHttpTransport'
-            - type: object
-              properties:
-                variables:
-                  type: object
-                  description: "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties."
-                  additionalProperties:
-                    $ref: '#/components/schemas/Input'
-        - allOf:
             - $ref: '#/components/schemas/SseTransport'
-            - type: object
-              properties:
-                variables:
-                  type: object
-                  description: "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties."
-                  additionalProperties:
-                    $ref: '#/components/schemas/Input'
+        - type: object
+          properties:
+            variables:
+              type: object
+              description: "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties."
+              additionalProperties:
+                $ref: '#/components/schemas/Input'
       description: Transport protocol configuration for remote context - extends StreamableHttpTransport or SseTransport with variables
 
     Icon:

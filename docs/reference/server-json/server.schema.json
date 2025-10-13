@@ -342,44 +342,28 @@
       "description": "A positional input is a value inserted verbatim into the command line."
     },
     "RemoteTransport": {
-      "anyOf": [
+      "allOf": [
         {
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/StreamableHttpTransport"
             },
             {
-              "properties": {
-                "variables": {
-                  "additionalProperties": {
-                    "$ref": "#/definitions/Input"
-                  },
-                  "description": "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties.",
-                  "type": "object"
-                }
-              },
-              "type": "object"
+              "$ref": "#/definitions/SseTransport"
             }
           ]
         },
         {
-          "allOf": [
-            {
-              "$ref": "#/definitions/SseTransport"
-            },
-            {
-              "properties": {
-                "variables": {
-                  "additionalProperties": {
-                    "$ref": "#/definitions/Input"
-                  },
-                  "description": "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties.",
-                  "type": "object"
-                }
+          "properties": {
+            "variables": {
+              "additionalProperties": {
+                "$ref": "#/definitions/Input"
               },
+              "description": "Configuration variables that can be referenced in URL template {curly_braces}. The key is the variable name, and the value defines the variable properties.",
               "type": "object"
             }
-          ]
+          },
+          "type": "object"
         }
       ],
       "description": "Transport protocol configuration for remote context - extends StreamableHttpTransport or SseTransport with variables"
