@@ -743,7 +743,7 @@ This example demonstrates URL templating for local/package servers, where variab
       "version": "1.0.0",
       "transport": {
         "type": "streamable-http",
-        "url": "http://localhost:{port}/mcp"
+        "url": "http://localhost:{--port}/mcp"
       },
       "packageArguments": [
         {
@@ -759,4 +759,4 @@ This example demonstrates URL templating for local/package servers, where variab
 }
 ```
 
-The `{port}` variable in the URL references either the `--port` argument name or the `port` valueHint from packageArguments. When the package runs with `--port 8080`, the URL becomes `http://localhost:8080/mcp`.
+The `{--port}` variable in the URL references the `--port` argument `name` from packageArguments. For positional arguments, an argument with the `valueHint` of `port` could similarly be referened as `{port}`. When the package runs with `--port 8080`, the URL becomes `http://localhost:8080/mcp`.
