@@ -61,7 +61,13 @@ func replaceTemplateVariables(rawURL string) string {
 		result = strings.ReplaceAll(result, placeholder, replacement)
 	}
 
-	// Handle any remaining {variable} patterns with generic placeholder
+	// Handle any remaining {variable} patterns with context-appropriate placeholders
+	// If the variable is in a port position (after a colon in the host), use a numeric placeholder
+	// Pattern: :/{variable} or :{variable}/ or :{variable} at end
+	portRe := regexp.MustCompile(`:(\{[^}]+\})(/|$)`)
+	result = portRe.ReplaceAllString(result, ":8080$2")
+
+	// Replace any other remaining {variable} patterns with generic placeholder
 	re := regexp.MustCompile(`\{[^}]+\}`)
 	result = re.ReplaceAllString(result, "placeholder")
 

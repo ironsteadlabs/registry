@@ -409,9 +409,9 @@ func validatePackageTransport(transport *model.Transport, availableVariables []s
 			templateVars := extractTemplateVariables(transport.URL)
 			if len(templateVars) > 0 {
 				return fmt.Errorf("%w: template variables in URL %s reference undefined variables. Available variables: %v",
-					ErrInvalidRemoteURL, transport.URL, availableVariables)
+					ErrInvalidPackageTransportURL, transport.URL, availableVariables)
 			}
-			return fmt.Errorf("%w: %s", ErrInvalidRemoteURL, transport.URL)
+			return fmt.Errorf("%w: %s", ErrInvalidPackageTransportURL, transport.URL)
 		}
 		return nil
 	default:
