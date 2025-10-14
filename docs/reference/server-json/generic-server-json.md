@@ -750,8 +750,7 @@ This example demonstrates URL templating for local/package servers, where variab
           "type": "named",
           "name": "--port",
           "description": "Port for the server to listen on",
-          "default": "3000",
-          "valueHint": "port"
+          "default": "3000"
         }
       ]
     }
