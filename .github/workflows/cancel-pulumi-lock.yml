@@ -112,9 +112,11 @@ jobs:
 
           echo "Using database user: $DB_USER"
 
-          kubectl run -n default pg-check-$(date +%s) \
+          # Create pod without --rm so we can get full logs
+          POD_NAME="pg-check-$(date +%s)"
+          kubectl run -n default $POD_NAME \
             --image=postgres:15 \
-            --rm -i --restart=Never \
+            --restart=Never \
             --env="PGPASSWORD=$DB_PASS" \
             -- bash -c "
               echo '=== Waiting for database to accept connections ==='
@@ -166,6 +168,20 @@ jobs:
               echo '=== Schema for schema_migrations table ==='
               psql -h registry-pg-rw -U $DB_USER -d app -c '\d+ schema_migrations'
             "
+
+          # Wait for pod to complete
+          echo ""
+          echo "Waiting for pod to complete..."
+          kubectl wait --for=condition=Ready pod/$POD_NAME -n default --timeout=60s || true
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/$POD_NAME -n default --timeout=60s || true
+
+          # Get the logs
+          echo ""
+          echo "=== Database Query Results ==="
+          kubectl logs $POD_NAME -n default
+
+          # Cleanup
+          kubectl delete pod $POD_NAME -n default
 
           echo ""
           echo "=== Registry Server Logs (first 100 lines) ==="
