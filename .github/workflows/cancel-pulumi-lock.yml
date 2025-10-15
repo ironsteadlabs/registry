@@ -17,6 +17,7 @@ on:
         options:
           - cancel-pulumi-lock
           - check-migrations
+          - run-migration-010-dry-run
 
 permissions:
   contents: read
@@ -83,7 +84,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE_FILE=passphrase.prod.txt pulumi cancel --stack gcpProd --yes
 
       - name: Configure kubectl (Staging)
-        if: inputs.environment == 'staging' && inputs.action == 'check-migrations'
+        if: inputs.environment == 'staging' && (inputs.action == 'check-migrations' || inputs.action == 'run-migration-010-dry-run')
         run: |
           gcloud container clusters get-credentials mcp-registry-staging \
             --zone=us-central1-b \
@@ -91,7 +92,7 @@ jobs:
           gcloud components install gke-gcloud-auth-plugin
 
       - name: Configure kubectl (Production)
-        if: inputs.environment == 'production' && inputs.action == 'check-migrations'
+        if: inputs.environment == 'production' && (inputs.action == 'check-migrations' || inputs.action == 'run-migration-010-dry-run')
         run: |
           gcloud container clusters get-credentials mcp-registry-prod \
             --zone=us-central1-b \
@@ -192,3 +193,82 @@ jobs:
           else
             echo "⚠️  No registry pod found"
           fi
+
+      - name: Run Migration 010 Dry Run
+        if: inputs.action == 'run-migration-010-dry-run'
+        run: |
+          set -e
+          echo "=== Running Migration 010 DRY RUN ==="
+          echo "This will show what changes WOULD be made WITHOUT committing"
+          echo ""
+
+          # Get database credentials
+          DB_USER=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.username}' | base64 -d)
+          DB_PASS=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.password}' | base64 -d)
+
+          echo "Database user: $DB_USER"
+
+          # Create a ConfigMap with the SQL file
+          echo "Creating ConfigMap with migration SQL..."
+          kubectl create configmap migration-010-dry-run \
+            --from-file=migration.sql=apply_migration_010_to_prod.sql \
+            -n default
+
+          # Create pod to run the migration SQL
+          POD_NAME="pg-migration-dry-run-$(date +%s)"
+          echo "Creating pod: $POD_NAME"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: $POD_NAME
+            namespace: default
+          spec:
+            restartPolicy: Never
+            containers:
+            - name: postgres-client
+              image: postgres:15
+              env:
+              - name: PGPASSWORD
+                value: "$DB_PASS"
+              - name: PGUSER
+                value: "$DB_USER"
+              command:
+              - bash
+              - -c
+              - |
+                echo "Waiting for database..."
+                pg_isready -h registry-pg-rw -U \$PGUSER
+                echo "Database is ready!"
+                echo ""
+                echo "Running migration dry run..."
+                psql -h registry-pg-rw -U \$PGUSER -d app -f /migration/migration.sql
+              volumeMounts:
+              - name: migration-sql
+                mountPath: /migration
+            volumes:
+            - name: migration-sql
+              configMap:
+                name: migration-010-dry-run
+          EOF
+
+          # Wait for completion
+          echo ""
+          echo "Waiting for migration dry run to complete..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/$POD_NAME -n default --timeout=120s || {
+            echo "Pod did not complete successfully, checking status..."
+            kubectl get pod $POD_NAME -n default
+          }
+
+          # Get logs regardless of success/failure
+          echo ""
+          echo "=== Migration Dry Run Results ==="
+          kubectl logs $POD_NAME -n default || echo "Failed to get logs"
+
+          # Cleanup (always run, even if previous steps failed)
+          echo ""
+          echo "Cleaning up..."
+          kubectl delete pod $POD_NAME -n default || true
+          kubectl delete configmap migration-010-dry-run -n default || true
+          echo "Cleanup complete"

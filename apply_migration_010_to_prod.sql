@@ -1,8 +1,8 @@
 -- ==================================================================================
--- PRODUCTION HOTFIX: Apply migration 010 (canonical package references)
+-- PRODUCTION HOTFIX: Apply migration 010 (canonical package references) - DRY RUN
 -- ==================================================================================
 --
--- This script manually applies migration 010 to fix the package format issue.
+-- This is a DRY RUN version that shows what would change WITHOUT committing.
 --
 -- CONTEXT:
 -- - Production has migration 9 = "009_separate_official_metadata" (old numbering)
@@ -11,11 +11,13 @@
 --
 -- SAFETY: This migration is IDEMPOTENT and safe to run multiple times
 --
--- TO APPLY:
--- Run this entire script in production database as user 'app'
+-- DRY RUN MODE:
+-- - Shows all changes that WOULD be made
+-- - Does NOT commit anything
+-- - Safe to run multiple times
 -- ==================================================================================
 
-BEGIN;
+BEGIN; -- Transaction will be rolled back at the end
 
 -- Helper function to convert OCI package to canonical reference format
 CREATE OR REPLACE FUNCTION convert_oci_package_to_canonical(pkg jsonb)
@@ -192,7 +194,7 @@ BEGIN
 END;
 $$;
 
--- Show affected servers before migration
+-- Show affected servers and their current data BEFORE migration
 DO $$
 DECLARE
     affected_count int;
@@ -207,8 +209,24 @@ BEGIN
         WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
       );
 
-    RAISE NOTICE 'About to migrate % servers with old package format', affected_count;
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'DRY RUN: About to migrate % servers with old package format', affected_count;
+    RAISE NOTICE '========================================';
 END $$;
+
+-- Show the actual servers that will be affected (BEFORE state)
+SELECT
+    server_name,
+    jsonb_pretty(value->'packages') as current_packages
+FROM servers
+WHERE value ? 'packages'
+  AND value->'packages' IS NOT NULL
+  AND jsonb_array_length(value->'packages') > 0
+  AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+    WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
+  )
+ORDER BY server_name;
 
 -- Migrate all server packages to canonical format
 UPDATE servers
@@ -221,7 +239,25 @@ WHERE value ? 'packages'
   AND value->'packages' IS NOT NULL
   AND jsonb_array_length(value->'packages') > 0;
 
--- Show result
+-- Show the migrated data (AFTER state)
+SELECT
+    server_name,
+    jsonb_pretty(value->'packages') as migrated_packages
+FROM servers
+WHERE value ? 'packages'
+  AND value->'packages' IS NOT NULL
+  AND jsonb_array_length(value->'packages') > 0
+  AND server_name IN (
+    -- Only show the servers that were affected
+    SELECT server_name FROM servers s2
+    WHERE s2.value ? 'packages'
+      AND s2.value->'packages' IS NOT NULL
+      AND jsonb_array_length(s2.value->'packages') > 0
+  )
+ORDER BY server_name
+LIMIT 10;
+
+-- Show result summary
 DO $$
 DECLARE
     remaining_count int;
@@ -236,7 +272,11 @@ BEGIN
         WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
       );
 
-    RAISE NOTICE 'Migration complete. Remaining servers with old format: %', remaining_count;
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'DRY RUN COMPLETE';
+    RAISE NOTICE 'Remaining servers with old format: %', remaining_count;
+    RAISE NOTICE 'Expected: 0 (all should be migrated)';
+    RAISE NOTICE '========================================';
 END $$;
 
 -- Clean up helper functions
@@ -246,14 +286,12 @@ DROP FUNCTION IF EXISTS remove_forbidden_fields(jsonb);
 DROP FUNCTION IF EXISTS ensure_transport_field(jsonb);
 DROP FUNCTION IF EXISTS convert_packages_array(jsonb);
 
--- Record migration as applied (using version 10 to avoid conflict with existing version 9)
-INSERT INTO schema_migrations (version, name, applied_at)
-VALUES (10, '010_migrate_canonical_package_refs', NOW())
-ON CONFLICT (version) DO NOTHING;
+-- DON'T record migration in dry run mode (we're rolling back)
+-- INSERT INTO schema_migrations (version, name, applied_at)
+-- VALUES (10, '010_migrate_canonical_package_refs', NOW())
+-- ON CONFLICT (version) DO NOTHING;
 
-COMMIT;
+-- ROLLBACK instead of COMMIT to ensure no changes are persisted
+ROLLBACK;
 
--- Show migration status
-SELECT version, name, applied_at
-FROM schema_migrations
-ORDER BY version;
+-- Note: The above SELECT queries show what WOULD happen, but no data is actually changed.
