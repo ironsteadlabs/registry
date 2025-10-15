@@ -18,6 +18,7 @@ on:
           - cancel-pulumi-lock
           - check-migrations
           - run-migration-010-dry-run
+          - reset-staging-db
 
 permissions:
   contents: read
@@ -84,7 +85,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE_FILE=passphrase.prod.txt pulumi cancel --stack gcpProd --yes
 
       - name: Configure kubectl (Staging)
-        if: inputs.environment == 'staging' && (inputs.action == 'check-migrations' || inputs.action == 'run-migration-010-dry-run')
+        if: inputs.environment == 'staging' && (inputs.action == 'check-migrations' || inputs.action == 'run-migration-010-dry-run' || inputs.action == 'reset-staging-db')
         run: |
           gcloud container clusters get-credentials mcp-registry-staging \
             --zone=us-central1-b \
@@ -272,3 +273,96 @@ jobs:
           kubectl delete pod $POD_NAME -n default || true
           kubectl delete configmap migration-010-dry-run -n default || true
           echo "Cleanup complete"
+
+      - name: Reset Staging Database
+        if: inputs.environment == 'staging' && inputs.action == 'reset-staging-db'
+        run: |
+          set -e
+          echo "=== RESETTING STAGING DATABASE ==="
+          echo "⚠️  WARNING: This will DROP ALL TABLES in the staging database"
+          echo "Environment: ${{ inputs.environment }}"
+          echo ""
+
+          # Safety check: Ensure we're on staging
+          if [ "${{ inputs.environment }}" != "staging" ]; then
+            echo "❌ ERROR: This action can only be run on staging!"
+            exit 1
+          fi
+
+          # Get database credentials
+          DB_USER=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.username}' | base64 -d)
+          DB_PASS=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.password}' | base64 -d)
+
+          echo "Database user: $DB_USER"
+
+          # Create pod to reset the database
+          POD_NAME="pg-reset-$(date +%s)"
+          echo "Creating pod: $POD_NAME"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: $POD_NAME
+            namespace: default
+          spec:
+            restartPolicy: Never
+            containers:
+            - name: postgres-client
+              image: postgres:15
+              env:
+              - name: PGPASSWORD
+                value: "$DB_PASS"
+              - name: PGUSER
+                value: "$DB_USER"
+              command:
+              - bash
+              - -c
+              - |
+                echo "Waiting for database..."
+                pg_isready -h registry-pg-rw -U \$PGUSER
+                echo "Database is ready!"
+                echo ""
+
+                echo "=== Listing tables before reset ==="
+                psql -h registry-pg-rw -U \$PGUSER -d app -c '\dt'
+
+                echo ""
+                echo "=== Dropping all tables ==="
+                psql -h registry-pg-rw -U \$PGUSER -d app -c "
+                  DROP TABLE IF EXISTS servers CASCADE;
+                  DROP TABLE IF EXISTS schema_migrations CASCADE;
+                "
+
+                echo ""
+                echo "=== Verifying tables are dropped ==="
+                psql -h registry-pg-rw -U \$PGUSER -d app -c '\dt'
+
+                echo ""
+                echo "✅ Database reset complete!"
+                echo "The registry application will recreate the schema on next startup."
+          EOF
+
+          # Wait for completion
+          echo ""
+          echo "Waiting for database reset to complete..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/$POD_NAME -n default --timeout=60s || {
+            echo "Pod did not complete successfully, checking status..."
+            kubectl get pod $POD_NAME -n default
+          }
+
+          # Get logs
+          echo ""
+          echo "=== Database Reset Results ==="
+          kubectl logs $POD_NAME -n default || echo "Failed to get logs"
+
+          # Cleanup
+          echo ""
+          echo "Cleaning up..."
+          kubectl delete pod $POD_NAME -n default || true
+          echo "Cleanup complete"
+
+          echo ""
+          echo "⚠️  Next steps:"
+          echo "1. Restart the registry deployment to trigger migrations"
+          echo "2. The application will recreate all tables with the correct schema"
