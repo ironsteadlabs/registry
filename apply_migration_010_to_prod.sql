@@ -1,8 +1,8 @@
 -- ==================================================================================
--- PRODUCTION HOTFIX: Apply migration 010 (canonical package references) - DRY RUN
+-- PRODUCTION HOTFIX: Apply migration 010 (canonical package references) - DRY RUN v2
 -- ==================================================================================
 --
--- This is a DRY RUN version that shows what would change WITHOUT committing.
+-- This is a FINAL DRY RUN with detailed OCI/MCPB reporting.
 --
 -- CONTEXT:
 -- - Production has migration 9 = "009_separate_official_metadata" (old numbering)
@@ -11,13 +11,12 @@
 --
 -- SAFETY: This migration is IDEMPOTENT and safe to run multiple times
 --
--- DRY RUN MODE:
--- - Shows all changes that WOULD be made
--- - Does NOT commit anything
--- - Safe to run multiple times
+-- LIVE RUN MODE:
+-- - Will make actual changes and COMMIT them
+-- - Fixes ~702 server versions with old package format
 -- ==================================================================================
 
-BEGIN; -- Transaction will be rolled back at the end
+BEGIN;
 
 -- Helper function to convert OCI package to canonical reference format
 CREATE OR REPLACE FUNCTION convert_oci_package_to_canonical(pkg jsonb)
@@ -198,6 +197,8 @@ $$;
 DO $$
 DECLARE
     affected_count int;
+    oci_count int;
+    mcpb_count int;
 BEGIN
     SELECT COUNT(*) INTO affected_count
     FROM servers
@@ -209,24 +210,55 @@ BEGIN
         WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
       );
 
+    SELECT COUNT(*) INTO oci_count
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'oci'
+      );
+
+    SELECT COUNT(*) INTO mcpb_count
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'mcpb'
+      );
+
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'DRY RUN: About to migrate % servers with old package format', affected_count;
+    RAISE NOTICE 'BEFORE MIGRATION';
+    RAISE NOTICE 'Total servers with old format: %', affected_count;
+    RAISE NOTICE 'Servers with OCI packages: %', oci_count;
+    RAISE NOTICE 'Servers with MCPB packages: %', mcpb_count;
     RAISE NOTICE '========================================';
 END $$;
 
--- Show the actual servers that will be affected (BEFORE state)
+-- Show OCI packages BEFORE migration
 SELECT
     server_name,
-    jsonb_pretty(value->'packages') as current_packages
+    jsonb_pretty(value->'packages') as oci_packages_before
 FROM servers
 WHERE value ? 'packages'
-  AND value->'packages' IS NOT NULL
-  AND jsonb_array_length(value->'packages') > 0
   AND EXISTS (
     SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
-    WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
+    WHERE pkg->>'registryType' = 'oci'
   )
-ORDER BY server_name;
+ORDER BY server_name
+LIMIT 5;
+
+-- Show MCPB packages BEFORE migration
+SELECT
+    server_name,
+    jsonb_pretty(value->'packages') as mcpb_packages_before
+FROM servers
+WHERE value ? 'packages'
+  AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+    WHERE pkg->>'registryType' = 'mcpb'
+  )
+ORDER BY server_name
+LIMIT 5;
 
 -- Migrate all server packages to canonical format
 UPDATE servers
@@ -239,28 +271,40 @@ WHERE value ? 'packages'
   AND value->'packages' IS NOT NULL
   AND jsonb_array_length(value->'packages') > 0;
 
--- Show the migrated data (AFTER state)
+-- Show OCI packages AFTER migration
 SELECT
     server_name,
-    jsonb_pretty(value->'packages') as migrated_packages
+    jsonb_pretty(value->'packages') as oci_packages_after
 FROM servers
 WHERE value ? 'packages'
-  AND value->'packages' IS NOT NULL
-  AND jsonb_array_length(value->'packages') > 0
-  AND server_name IN (
-    -- Only show the servers that were affected
-    SELECT server_name FROM servers s2
-    WHERE s2.value ? 'packages'
-      AND s2.value->'packages' IS NOT NULL
-      AND jsonb_array_length(s2.value->'packages') > 0
+  AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+    WHERE pkg->>'registryType' = 'oci'
   )
 ORDER BY server_name
-LIMIT 10;
+LIMIT 5;
+
+-- Show MCPB packages AFTER migration
+SELECT
+    server_name,
+    jsonb_pretty(value->'packages') as mcpb_packages_after
+FROM servers
+WHERE value ? 'packages'
+  AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+    WHERE pkg->>'registryType' = 'mcpb'
+  )
+ORDER BY server_name
+LIMIT 5;
 
 -- Show result summary
 DO $$
 DECLARE
     remaining_count int;
+    oci_count_after int;
+    mcpb_count_after int;
+    oci_with_old_format int;
+    mcpb_with_old_format int;
 BEGIN
     SELECT COUNT(*) INTO remaining_count
     FROM servers
@@ -272,10 +316,47 @@ BEGIN
         WHERE pkg ? 'registryBaseUrl' OR pkg ? 'version'
       );
 
+    SELECT COUNT(*) INTO oci_count_after
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'oci'
+      );
+
+    SELECT COUNT(*) INTO mcpb_count_after
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'mcpb'
+      );
+
+    SELECT COUNT(*) INTO oci_with_old_format
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'oci'
+          AND (pkg ? 'registryBaseUrl' OR pkg ? 'version')
+      );
+
+    SELECT COUNT(*) INTO mcpb_with_old_format
+    FROM servers
+    WHERE value ? 'packages'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(value->'packages') AS pkg
+        WHERE pkg->>'registryType' = 'mcpb'
+          AND (pkg ? 'registryBaseUrl' OR pkg ? 'version')
+      );
+
     RAISE NOTICE '========================================';
-    RAISE NOTICE 'DRY RUN COMPLETE';
+    RAISE NOTICE 'AFTER MIGRATION';
     RAISE NOTICE 'Remaining servers with old format: %', remaining_count;
-    RAISE NOTICE 'Expected: 0 (all should be migrated)';
+    RAISE NOTICE 'Servers with OCI packages: %', oci_count_after;
+    RAISE NOTICE 'Servers with MCPB packages: %', mcpb_count_after;
+    RAISE NOTICE 'OCI packages still with old format: %', oci_with_old_format;
+    RAISE NOTICE 'MCPB packages still with old format: %', mcpb_with_old_format;
     RAISE NOTICE '========================================';
 END $$;
 
@@ -286,12 +367,12 @@ DROP FUNCTION IF EXISTS remove_forbidden_fields(jsonb);
 DROP FUNCTION IF EXISTS ensure_transport_field(jsonb);
 DROP FUNCTION IF EXISTS convert_packages_array(jsonb);
 
--- DON'T record migration in dry run mode (we're rolling back)
+-- DON'T record migration in dry run mode
 -- INSERT INTO schema_migrations (version, name, applied_at)
 -- VALUES (10, '010_migrate_canonical_package_refs', NOW())
 -- ON CONFLICT (version) DO NOTHING;
 
--- ROLLBACK instead of COMMIT to ensure no changes are persisted
+-- ROLLBACK to not commit any changes (DRY RUN)
 ROLLBACK;
 
--- Note: The above SELECT queries show what WOULD happen, but no data is actually changed.
+-- Note: All changes were rolled back. No data was modified.
