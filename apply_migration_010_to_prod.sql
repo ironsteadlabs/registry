@@ -1,8 +1,8 @@
 -- ==================================================================================
--- PRODUCTION HOTFIX: Apply migration 010 (canonical package references) - DRY RUN v2
+-- PRODUCTION HOTFIX: Apply migration 010 (canonical package references) - LIVE RUN
 -- ==================================================================================
 --
--- This is a FINAL DRY RUN with detailed OCI/MCPB reporting.
+-- This will COMMIT changes to fix the package format issue in production.
 --
 -- CONTEXT:
 -- - Production has migration 9 = "009_separate_official_metadata" (old numbering)
@@ -11,9 +11,12 @@
 --
 -- SAFETY: This migration is IDEMPOTENT and safe to run multiple times
 --
--- LIVE RUN MODE:
--- - Will make actual changes and COMMIT them
--- - Fixes ~702 server versions with old package format
+-- WHAT THIS DOES:
+-- - Transforms 703 server versions with old package format
+-- - Fixes 95 OCI packages (removes registryBaseUrl, version fields)
+-- - Fixes 36 MCPB packages (removes version field)
+-- - Cleans up 611 other package types (NPM, PyPI, etc.)
+-- - Records migration 010 in schema_migrations
 -- ==================================================================================
 
 BEGIN;
@@ -367,12 +370,15 @@ DROP FUNCTION IF EXISTS remove_forbidden_fields(jsonb);
 DROP FUNCTION IF EXISTS ensure_transport_field(jsonb);
 DROP FUNCTION IF EXISTS convert_packages_array(jsonb);
 
--- DON'T record migration in dry run mode
--- INSERT INTO schema_migrations (version, name, applied_at)
--- VALUES (10, '010_migrate_canonical_package_refs', NOW())
--- ON CONFLICT (version) DO NOTHING;
+-- Record migration as applied (using version 10 to avoid conflict with existing version 9)
+INSERT INTO schema_migrations (version, name, applied_at)
+VALUES (10, '010_migrate_canonical_package_refs', NOW())
+ON CONFLICT (version) DO NOTHING;
 
--- ROLLBACK to not commit any changes (DRY RUN)
-ROLLBACK;
+-- COMMIT all changes
+COMMIT;
 
--- Note: All changes were rolled back. No data was modified.
+-- Show final migration status
+SELECT version, name, applied_at
+FROM schema_migrations
+ORDER BY version;
