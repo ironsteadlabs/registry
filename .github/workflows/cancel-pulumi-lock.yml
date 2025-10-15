@@ -10,6 +10,13 @@ on:
         options:
           - staging
           - production
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - cancel-pulumi-lock
+          - check-migrations
 
 permissions:
   contents: read
@@ -56,7 +63,7 @@ jobs:
           project_id: mcp-registry-prod
 
       - name: Cancel Pulumi Lock (Staging)
-        if: inputs.environment == 'staging'
+        if: inputs.environment == 'staging' && inputs.action == 'cancel-pulumi-lock'
         working-directory: ./deploy
         env:
           PULUMI_STAGING_PASSPHRASE: ${{ secrets.PULUMI_STAGING_PASSPHRASE }}
@@ -66,7 +73,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE_FILE=passphrase.staging.txt pulumi cancel --stack gcpStaging --yes
 
       - name: Cancel Pulumi Lock (Production)
-        if: inputs.environment == 'production'
+        if: inputs.environment == 'production' && inputs.action == 'cancel-pulumi-lock'
         working-directory: ./deploy
         env:
           PULUMI_PROD_PASSPHRASE: ${{ secrets.PULUMI_PROD_PASSPHRASE }}
@@ -74,3 +81,98 @@ jobs:
           echo "$PULUMI_PROD_PASSPHRASE" > passphrase.prod.txt
           pulumi login gs://mcp-registry-prod-pulumi-state
           PULUMI_CONFIG_PASSPHRASE_FILE=passphrase.prod.txt pulumi cancel --stack gcpProd --yes
+
+      - name: Configure kubectl (Staging)
+        if: inputs.environment == 'staging' && inputs.action == 'check-migrations'
+        run: |
+          gcloud container clusters get-credentials mcp-registry-staging \
+            --zone=us-central1-b \
+            --project=mcp-registry-staging
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Configure kubectl (Production)
+        if: inputs.environment == 'production' && inputs.action == 'check-migrations'
+        run: |
+          gcloud container clusters get-credentials mcp-registry-prod \
+            --zone=us-central1-b \
+            --project=mcp-registry-prod
+          gcloud components install gke-gcloud-auth-plugin
+
+      - name: Check Migrations
+        if: inputs.action == 'check-migrations'
+        run: |
+          echo "=== Listing all postgres secrets in default namespace ==="
+          kubectl get secrets -n default | grep registry-pg
+
+          echo ""
+          echo "=== Creating temporary postgres client pod ==="
+          # Use the app user credentials from registry-pg-app secret
+          DB_USER=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.username}' | base64 -d)
+          DB_PASS=$(kubectl get secret registry-pg-app -n default -o jsonpath='{.data.password}' | base64 -d)
+
+          echo "Using database user: $DB_USER"
+
+          kubectl run -n default pg-check-$(date +%s) \
+            --image=postgres:15 \
+            --rm -i --restart=Never \
+            --env="PGPASSWORD=$DB_PASS" \
+            -- bash -c "
+              echo '=== Waiting for database to accept connections ==='
+              for i in {1..30}; do
+                if pg_isready -h registry-pg-rw -U $DB_USER 2>/dev/null; then
+                  echo 'Database is ready!'
+                  break
+                fi
+                echo \"Waiting... (\$i/30)\"
+                sleep 2
+              done
+
+              echo ''
+              echo '=== ALL Applied Migrations in ${{ inputs.environment }} ==='
+              psql -h registry-pg-rw -U $DB_USER -d app -c 'SELECT version, name, applied_at FROM schema_migrations ORDER BY version;'
+
+              echo ''
+              echo '=== Checking for migration 009 specifically ==='
+              MIGRATION_009_COUNT=\$(psql -h registry-pg-rw -U $DB_USER -d app -tAc 'SELECT COUNT(*) FROM schema_migrations WHERE version = 9;' 2>/dev/null | tr -d '[:space:]')
+
+              echo "Migration 009 count: '$MIGRATION_009_COUNT'"
+              if [ -z "$MIGRATION_009_COUNT" ] || [ "$MIGRATION_009_COUNT" = "0" ]; then
+                echo "❌ Migration 009 NOT FOUND - this explains why packages still have old format"
+              else
+                echo "✅ Migration 009 IS APPLIED"
+              fi
+
+              echo ''
+              echo '=== Sample Package Data (first 3 servers with packages) ==='
+              psql -h registry-pg-rw -U $DB_USER -d app -c \"
+                SELECT
+                  server_name,
+                  jsonb_pretty(value->'packages') as packages
+                FROM servers
+                WHERE value ? 'packages'
+                  AND jsonb_array_length(value->'packages') > 0
+                LIMIT 3;
+              \"
+
+              echo ''
+              echo '=== Database Schema/Layout ==='
+              psql -h registry-pg-rw -U $DB_USER -d app -c '\dt+'
+
+              echo ''
+              echo '=== Schema for servers table ==='
+              psql -h registry-pg-rw -U $DB_USER -d app -c '\d+ servers'
+
+              echo ''
+              echo '=== Schema for schema_migrations table ==='
+              psql -h registry-pg-rw -U $DB_USER -d app -c '\d+ schema_migrations'
+            "
+
+          echo ""
+          echo "=== Registry Server Logs (first 100 lines) ==="
+          REGISTRY_POD=$(kubectl get pods -l app=mcp-registry -n default -o jsonpath='{.items[0].metadata.name}')
+          if [ -n "$REGISTRY_POD" ]; then
+            echo "Found registry pod: $REGISTRY_POD"
+            kubectl logs -n default $REGISTRY_POD --tail=100
+          else
+            echo "⚠️  No registry pod found"
+          fi
