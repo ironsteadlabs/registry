@@ -15,6 +15,11 @@ import (
 const (
 	DefaultRegistryURL = "https://registry.modelcontextprotocol.io"
 	TokenFileName      = ".mcp_publisher_token" //nolint:gosec // Not a credential, just a filename
+	MethodGitHub       = "github"
+	MethodGitHubOIDC   = "github-oidc"
+	MethodDNS          = "dns"
+	MethodHTTP         = "http"
+	MethodNone         = "none"
 )
 
 type CryptoAlgorithm auth.CryptoAlgorithm
@@ -32,56 +37,82 @@ func (c *CryptoAlgorithm) Set(v string) error {
 	return fmt.Errorf("invalid algorithm: %q (allowed: ed25519, ecdsap384)", v)
 }
 
+type loginFlags struct {
+	domain          string
+	privateKey      string
+	cryptoAlgorithm CryptoAlgorithm
+	registryURL     string
+	token           string
+}
+
 func LoginCommand(args []string) error {
 	if len(args) < 1 {
 		return errors.New("authentication method required\n\nUsage: mcp-publisher login <method>\n\nMethods:\n  github        Interactive GitHub authentication\n  github-oidc   GitHub Actions OIDC authentication\n  dns           DNS-based authentication (requires --domain and --private-key)\n  http          HTTP-based authentication (requires --domain and --private-key)\n  none          Anonymous authentication (for testing)")
 	}
 
 	method := args[0]
-
-	// Parse remaining flags based on method
-	loginFlags := flag.NewFlagSet("login", flag.ExitOnError)
-	var domain string
-	var privateKey string
-	var cryptoAlgorithm = CryptoAlgorithm(auth.AlgorithmEd25519)
-	var registryURL string
-
-	loginFlags.StringVar(&registryURL, "registry", DefaultRegistryURL, "Registry URL")
-
-	if method == "dns" || method == "http" {
-		loginFlags.StringVar(&domain, "domain", "", "Domain name")
-		loginFlags.StringVar(&privateKey, "private-key", "", "Private key (hex)")
-		loginFlags.Var(&cryptoAlgorithm, "algorithm", "Cryptographic algorithm (ed25519, ecdsap384)")
-	}
-
-	if err := loginFlags.Parse(args[1:]); err != nil {
+	flags, err := parseLoginFlags(method, args[1:])
+	if err != nil {
 		return err
 	}
 
-	// Create auth provider based on method
-	var authProvider auth.Provider
-	switch method {
-	case "github":
-		authProvider = auth.NewGitHubATProvider(true, registryURL)
-	case "github-oidc":
-		authProvider = auth.NewGitHubOIDCProvider(registryURL)
-	case "dns":
-		if domain == "" || privateKey == "" {
-			return errors.New("dns authentication requires --domain and --private-key")
-		}
-		authProvider = auth.NewDNSProvider(registryURL, domain, privateKey, auth.CryptoAlgorithm(cryptoAlgorithm))
-	case "http":
-		if domain == "" || privateKey == "" {
-			return errors.New("http authentication requires --domain and --private-key")
-		}
-		authProvider = auth.NewHTTPProvider(registryURL, domain, privateKey, auth.CryptoAlgorithm(cryptoAlgorithm))
-	case "none":
-		authProvider = auth.NewNoneProvider(registryURL)
-	default:
-		return fmt.Errorf("unknown authentication method: %s\nFor a list of available methods, run: mcp-publisher login", method)
+	authProvider, err := createAuthProvider(method, flags)
+	if err != nil {
+		return err
 	}
 
-	// Perform login
+	return performLogin(authProvider, method, flags.registryURL)
+}
+
+func parseLoginFlags(method string, args []string) (*loginFlags, error) {
+	flags := &loginFlags{
+		cryptoAlgorithm: CryptoAlgorithm(auth.AlgorithmEd25519), // default
+	}
+	loginFlagSet := flag.NewFlagSet("login", flag.ExitOnError)
+
+	loginFlagSet.StringVar(&flags.registryURL, "registry", DefaultRegistryURL, "Registry URL")
+
+	if method == MethodGitHub {
+		loginFlagSet.StringVar(&flags.token, "token", "", "GitHub Personal Access Token")
+	}
+
+	if method == MethodDNS || method == MethodHTTP {
+		loginFlagSet.StringVar(&flags.domain, "domain", "", "Domain name")
+		loginFlagSet.StringVar(&flags.privateKey, "private-key", "", "Private key (64-char hex)")
+		loginFlagSet.Var(&flags.cryptoAlgorithm, "algorithm", "Cryptographic algorithm (ed25519, ecdsap384)")
+	}
+
+	if err := loginFlagSet.Parse(args); err != nil {
+		return nil, err
+	}
+
+	return flags, nil
+}
+
+func createAuthProvider(method string, flags *loginFlags) (auth.Provider, error) {
+	switch method {
+	case MethodGitHub:
+		return auth.NewGitHubATProvider(true, flags.registryURL, flags.token), nil
+	case MethodGitHubOIDC:
+		return auth.NewGitHubOIDCProvider(flags.registryURL), nil
+	case MethodDNS:
+		if flags.domain == "" || flags.privateKey == "" {
+			return nil, errors.New("dns authentication requires --domain and --private-key")
+		}
+		return auth.NewDNSProvider(flags.registryURL, flags.domain, flags.privateKey, auth.CryptoAlgorithm(flags.cryptoAlgorithm)), nil
+	case MethodHTTP:
+		if flags.domain == "" || flags.privateKey == "" {
+			return nil, errors.New("http authentication requires --domain and --private-key")
+		}
+		return auth.NewHTTPProvider(flags.registryURL, flags.domain, flags.privateKey, auth.CryptoAlgorithm(flags.cryptoAlgorithm)), nil
+	case MethodNone:
+		return auth.NewNoneProvider(flags.registryURL), nil
+	default:
+		return nil, fmt.Errorf("unknown authentication method: %s\nFor a list of available methods, run: mcp-publisher login", method)
+	}
+}
+
+func performLogin(authProvider auth.Provider, method, registryURL string) error {
 	ctx := context.Background()
 	_, _ = fmt.Fprintf(os.Stdout, "Logging in with %s...\n", method)
 
