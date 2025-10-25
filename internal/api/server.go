@@ -49,8 +49,9 @@ func NewServer(cfg *config.Config, registryService service.RegistryService, metr
 
 	api := router.NewHumaAPI(cfg, registryService, mux, metrics, versionInfo)
 
-	// Wrap the mux with trailing slash middleware
-	handler := TrailingSlashMiddleware(mux)
+	// Wrap the mux with middleware stack
+	// Order: TrailingSlash -> CORS -> Mux
+	handler := TrailingSlashMiddleware(CORSMiddleware(cfg)(mux))
 
 	server := &Server{
 		config:   cfg,
