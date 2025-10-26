@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/modelcontextprotocol/registry/internal/config"
 	"github.com/modelcontextprotocol/registry/internal/database"
 	"github.com/modelcontextprotocol/registry/internal/validators"
@@ -79,13 +78,13 @@ func (s *registryServiceImpl) GetAllVersionsByServerName(ctx context.Context, se
 // CreateServer creates a new server version
 func (s *registryServiceImpl) CreateServer(ctx context.Context, req *apiv0.ServerJSON) (*apiv0.ServerResponse, error) {
 	// Wrap the entire operation in a transaction
-	return database.InTransactionT(ctx, s.db, func(ctx context.Context, tx pgx.Tx) (*apiv0.ServerResponse, error) {
+	return database.InTransactionT(ctx, s.db, func(ctx context.Context, tx database.Tx) (*apiv0.ServerResponse, error) {
 		return s.createServerInTransaction(ctx, tx, req)
 	})
 }
 
 // createServerInTransaction contains the actual CreateServer logic within a transaction
-func (s *registryServiceImpl) createServerInTransaction(ctx context.Context, tx pgx.Tx, req *apiv0.ServerJSON) (*apiv0.ServerResponse, error) {
+func (s *registryServiceImpl) createServerInTransaction(ctx context.Context, tx database.Tx, req *apiv0.ServerJSON) (*apiv0.ServerResponse, error) {
 	// Validate the request
 	if err := validators.ValidatePublishRequest(ctx, *req, s.cfg); err != nil {
 		return nil, err
@@ -163,7 +162,7 @@ func (s *registryServiceImpl) createServerInTransaction(ctx context.Context, tx 
 }
 
 // validateNoDuplicateRemoteURLs checks that no other server is using the same remote URLs
-func (s *registryServiceImpl) validateNoDuplicateRemoteURLs(ctx context.Context, tx pgx.Tx, serverDetail apiv0.ServerJSON) error {
+func (s *registryServiceImpl) validateNoDuplicateRemoteURLs(ctx context.Context, tx database.Tx, serverDetail apiv0.ServerJSON) error {
 	// Check each remote URL in the new server for conflicts
 	for _, remote := range serverDetail.Remotes {
 		// Use filter to find servers with this remote URL
@@ -188,13 +187,13 @@ func (s *registryServiceImpl) validateNoDuplicateRemoteURLs(ctx context.Context,
 // UpdateServer updates an existing server with new details
 func (s *registryServiceImpl) UpdateServer(ctx context.Context, serverName, version string, req *apiv0.ServerJSON, newStatus *string) (*apiv0.ServerResponse, error) {
 	// Wrap the entire operation in a transaction
-	return database.InTransactionT(ctx, s.db, func(ctx context.Context, tx pgx.Tx) (*apiv0.ServerResponse, error) {
+	return database.InTransactionT(ctx, s.db, func(ctx context.Context, tx database.Tx) (*apiv0.ServerResponse, error) {
 		return s.updateServerInTransaction(ctx, tx, serverName, version, req, newStatus)
 	})
 }
 
 // updateServerInTransaction contains the actual UpdateServer logic within a transaction
-func (s *registryServiceImpl) updateServerInTransaction(ctx context.Context, tx pgx.Tx, serverName, version string, req *apiv0.ServerJSON, newStatus *string) (*apiv0.ServerResponse, error) {
+func (s *registryServiceImpl) updateServerInTransaction(ctx context.Context, tx database.Tx, serverName, version string, req *apiv0.ServerJSON, newStatus *string) (*apiv0.ServerResponse, error) {
 	// Get current server to check if it's deleted or being deleted
 	currentServer, err := s.db.GetServerByNameAndVersion(ctx, tx, serverName, version)
 	if err != nil {

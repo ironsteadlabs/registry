@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/modelcontextprotocol/registry/internal/database"
 	apiv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 	"github.com/modelcontextprotocol/registry/pkg/model"
@@ -551,7 +550,7 @@ func TestPostgreSQL_TransactionHandling(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("successful transaction", func(t *testing.T) {
-		err := db.InTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		err := db.InTransaction(ctx, func(ctx context.Context, tx database.Tx) error {
 			serverJSON := &apiv0.ServerJSON{
 				Name:        "com.example/transaction-success",
 				Description: "Transaction test server",
@@ -577,7 +576,7 @@ func TestPostgreSQL_TransactionHandling(t *testing.T) {
 	})
 
 	t.Run("failed transaction rollback", func(t *testing.T) {
-		err := db.InTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		err := db.InTransaction(ctx, func(ctx context.Context, tx database.Tx) error {
 			serverJSON := &apiv0.ServerJSON{
 				Name:        "com.example/transaction-rollback",
 				Description: "Transaction rollback test server",
@@ -624,7 +623,7 @@ func TestPostgreSQL_ConcurrencyAndLocking(t *testing.T) {
 		// Launch two concurrent publish operations
 		for i := 0; i < 2; i++ {
 			go func(version string) {
-				err := db.InTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+				err := db.InTransaction(ctx, func(ctx context.Context, tx database.Tx) error {
 					// Acquire lock
 					if err := db.AcquirePublishLock(ctx, tx, serverName); err != nil {
 						return err

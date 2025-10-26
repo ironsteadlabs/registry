@@ -30,9 +30,10 @@ type Executor interface {
 }
 
 // getExecutor returns the appropriate executor (transaction or pool)
-func (db *PostgreSQL) getExecutor(tx pgx.Tx) Executor {
+func (db *PostgreSQL) getExecutor(tx Tx) Executor {
 	if tx != nil {
-		return tx
+		// Unwrap the PostgresTx to get the underlying pgx.Tx
+		return tx.(*PostgresTx).Unwrap()
 	}
 	return db.pool
 }
@@ -81,7 +82,7 @@ func NewPostgreSQL(ctx context.Context, connectionURI string) (*PostgreSQL, erro
 
 func (db *PostgreSQL) ListServers(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx Tx,
 	filter *ServerFilter,
 	cursor string,
 	limit int,
@@ -224,7 +225,7 @@ func (db *PostgreSQL) ListServers(
 }
 
 // GetServerByName retrieves the latest version of a server by server name
-func (db *PostgreSQL) GetServerByName(ctx context.Context, tx pgx.Tx, serverName string) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) GetServerByName(ctx context.Context, tx Tx, serverName string) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -273,7 +274,7 @@ func (db *PostgreSQL) GetServerByName(ctx context.Context, tx pgx.Tx, serverName
 }
 
 // GetServerByNameAndVersion retrieves a specific version of a server by server name and version
-func (db *PostgreSQL) GetServerByNameAndVersion(ctx context.Context, tx pgx.Tx, serverName string, version string) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) GetServerByNameAndVersion(ctx context.Context, tx Tx, serverName string, version string) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -321,7 +322,7 @@ func (db *PostgreSQL) GetServerByNameAndVersion(ctx context.Context, tx pgx.Tx, 
 }
 
 // GetAllVersionsByServerName retrieves all versions of a server by server name
-func (db *PostgreSQL) GetAllVersionsByServerName(ctx context.Context, tx pgx.Tx, serverName string) ([]*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) GetAllVersionsByServerName(ctx context.Context, tx Tx, serverName string) ([]*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -385,7 +386,7 @@ func (db *PostgreSQL) GetAllVersionsByServerName(ctx context.Context, tx pgx.Tx,
 }
 
 // CreateServer inserts a new server version with official metadata
-func (db *PostgreSQL) CreateServer(ctx context.Context, tx pgx.Tx, serverJSON *apiv0.ServerJSON, officialMeta *apiv0.RegistryExtensions) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) CreateServer(ctx context.Context, tx Tx, serverJSON *apiv0.ServerJSON, officialMeta *apiv0.RegistryExtensions) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -437,7 +438,7 @@ func (db *PostgreSQL) CreateServer(ctx context.Context, tx pgx.Tx, serverJSON *a
 }
 
 // UpdateServer updates an existing server record with new server details
-func (db *PostgreSQL) UpdateServer(ctx context.Context, tx pgx.Tx, serverName, version string, serverJSON *apiv0.ServerJSON) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) UpdateServer(ctx context.Context, tx Tx, serverName, version string, serverJSON *apiv0.ServerJSON) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -495,7 +496,7 @@ func (db *PostgreSQL) UpdateServer(ctx context.Context, tx pgx.Tx, serverName, v
 }
 
 // SetServerStatus updates the status of a specific server version
-func (db *PostgreSQL) SetServerStatus(ctx context.Context, tx pgx.Tx, serverName, version string, status string) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) SetServerStatus(ctx context.Context, tx Tx, serverName, version string, status string) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -544,12 +545,12 @@ func (db *PostgreSQL) SetServerStatus(ctx context.Context, tx pgx.Tx, serverName
 }
 
 // InTransaction executes a function within a database transaction
-func (db *PostgreSQL) InTransaction(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
+func (db *PostgreSQL) InTransaction(ctx context.Context, fn func(ctx context.Context, tx Tx) error) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 
-	tx, err := db.pool.Begin(ctx)
+	pgxTx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -557,16 +558,19 @@ func (db *PostgreSQL) InTransaction(ctx context.Context, fn func(ctx context.Con
 	defer func() {
 		rollbackCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		if rbErr := tx.Rollback(rollbackCtx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+		if rbErr := pgxTx.Rollback(rollbackCtx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
 			log.Printf("failed to rollback transaction: %v", rbErr)
 		}
 	}()
+
+	// Wrap the pgx.Tx with our PostgresTx wrapper
+	tx := &PostgresTx{tx: pgxTx}
 
 	if err := fn(ctx, tx); err != nil {
 		return err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if err := pgxTx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
@@ -576,7 +580,7 @@ func (db *PostgreSQL) InTransaction(ctx context.Context, fn func(ctx context.Con
 // AcquirePublishLock acquires an exclusive advisory lock for publishing a server
 // This prevents race conditions when multiple versions are published concurrently
 // Using pg_advisory_xact_lock which auto-releases on transaction end
-func (db *PostgreSQL) AcquirePublishLock(ctx context.Context, tx pgx.Tx, serverName string) error {
+func (db *PostgreSQL) AcquirePublishLock(ctx context.Context, tx Tx, serverName string) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -607,7 +611,7 @@ func hashServerName(name string) int64 {
 }
 
 // GetCurrentLatestVersion retrieves the current latest version of a server by server name
-func (db *PostgreSQL) GetCurrentLatestVersion(ctx context.Context, tx pgx.Tx, serverName string) (*apiv0.ServerResponse, error) {
+func (db *PostgreSQL) GetCurrentLatestVersion(ctx context.Context, tx Tx, serverName string) (*apiv0.ServerResponse, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -657,7 +661,7 @@ func (db *PostgreSQL) GetCurrentLatestVersion(ctx context.Context, tx pgx.Tx, se
 }
 
 // CountServerVersions counts the number of versions for a server
-func (db *PostgreSQL) CountServerVersions(ctx context.Context, tx pgx.Tx, serverName string) (int, error) {
+func (db *PostgreSQL) CountServerVersions(ctx context.Context, tx Tx, serverName string) (int, error) {
 	if ctx.Err() != nil {
 		return 0, ctx.Err()
 	}
@@ -676,7 +680,7 @@ func (db *PostgreSQL) CountServerVersions(ctx context.Context, tx pgx.Tx, server
 }
 
 // CheckVersionExists checks if a specific version exists for a server
-func (db *PostgreSQL) CheckVersionExists(ctx context.Context, tx pgx.Tx, serverName, version string) (bool, error) {
+func (db *PostgreSQL) CheckVersionExists(ctx context.Context, tx Tx, serverName, version string) (bool, error) {
 	if ctx.Err() != nil {
 		return false, ctx.Err()
 	}
@@ -695,7 +699,7 @@ func (db *PostgreSQL) CheckVersionExists(ctx context.Context, tx pgx.Tx, serverN
 }
 
 // UnmarkAsLatest marks the current latest version of a server as no longer latest
-func (db *PostgreSQL) UnmarkAsLatest(ctx context.Context, tx pgx.Tx, serverName string) error {
+func (db *PostgreSQL) UnmarkAsLatest(ctx context.Context, tx Tx, serverName string) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

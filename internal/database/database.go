@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	apiv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 )
 
@@ -32,32 +31,32 @@ type ServerFilter struct {
 // Database defines the interface for database operations
 type Database interface {
 	// CreateServer inserts a new server version with official metadata
-	CreateServer(ctx context.Context, tx pgx.Tx, serverJSON *apiv0.ServerJSON, officialMeta *apiv0.RegistryExtensions) (*apiv0.ServerResponse, error)
+	CreateServer(ctx context.Context, tx Tx, serverJSON *apiv0.ServerJSON, officialMeta *apiv0.RegistryExtensions) (*apiv0.ServerResponse, error)
 	// UpdateServer updates an existing server record
-	UpdateServer(ctx context.Context, tx pgx.Tx, serverName, version string, serverJSON *apiv0.ServerJSON) (*apiv0.ServerResponse, error)
+	UpdateServer(ctx context.Context, tx Tx, serverName, version string, serverJSON *apiv0.ServerJSON) (*apiv0.ServerResponse, error)
 	// SetServerStatus updates the status of a specific server version
-	SetServerStatus(ctx context.Context, tx pgx.Tx, serverName, version string, status string) (*apiv0.ServerResponse, error)
+	SetServerStatus(ctx context.Context, tx Tx, serverName, version string, status string) (*apiv0.ServerResponse, error)
 	// ListServers retrieve server entries with optional filtering
-	ListServers(ctx context.Context, tx pgx.Tx, filter *ServerFilter, cursor string, limit int) ([]*apiv0.ServerResponse, string, error)
+	ListServers(ctx context.Context, tx Tx, filter *ServerFilter, cursor string, limit int) ([]*apiv0.ServerResponse, string, error)
 	// GetServerByName retrieve a single server by its name
-	GetServerByName(ctx context.Context, tx pgx.Tx, serverName string) (*apiv0.ServerResponse, error)
+	GetServerByName(ctx context.Context, tx Tx, serverName string) (*apiv0.ServerResponse, error)
 	// GetServerByNameAndVersion retrieve specific version of a server by server name and version
-	GetServerByNameAndVersion(ctx context.Context, tx pgx.Tx, serverName string, version string) (*apiv0.ServerResponse, error)
+	GetServerByNameAndVersion(ctx context.Context, tx Tx, serverName string, version string) (*apiv0.ServerResponse, error)
 	// GetAllVersionsByServerName retrieve all versions of a server by server name
-	GetAllVersionsByServerName(ctx context.Context, tx pgx.Tx, serverName string) ([]*apiv0.ServerResponse, error)
+	GetAllVersionsByServerName(ctx context.Context, tx Tx, serverName string) ([]*apiv0.ServerResponse, error)
 	// GetCurrentLatestVersion retrieve the current latest version of a server by server name
-	GetCurrentLatestVersion(ctx context.Context, tx pgx.Tx, serverName string) (*apiv0.ServerResponse, error)
+	GetCurrentLatestVersion(ctx context.Context, tx Tx, serverName string) (*apiv0.ServerResponse, error)
 	// CountServerVersions count the number of versions for a server
-	CountServerVersions(ctx context.Context, tx pgx.Tx, serverName string) (int, error)
+	CountServerVersions(ctx context.Context, tx Tx, serverName string) (int, error)
 	// CheckVersionExists check if a specific version exists for a server
-	CheckVersionExists(ctx context.Context, tx pgx.Tx, serverName, version string) (bool, error)
+	CheckVersionExists(ctx context.Context, tx Tx, serverName, version string) (bool, error)
 	// UnmarkAsLatest marks the current latest version of a server as no longer latest
-	UnmarkAsLatest(ctx context.Context, tx pgx.Tx, serverName string) error
+	UnmarkAsLatest(ctx context.Context, tx Tx, serverName string) error
 	// AcquirePublishLock acquires an exclusive advisory lock for publishing a server
 	// This prevents race conditions when multiple versions are published concurrently
-	AcquirePublishLock(ctx context.Context, tx pgx.Tx, serverName string) error
+	AcquirePublishLock(ctx context.Context, tx Tx, serverName string) error
 	// InTransaction executes a function within a database transaction
-	InTransaction(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error
+	InTransaction(ctx context.Context, fn func(ctx context.Context, tx Tx) error) error
 	// Close closes the database connection
 	Close() error
 }
@@ -66,11 +65,11 @@ type Database interface {
 // This exists because Go does not support generic methods on interfaces - only the Database interface
 // method InTransaction (without generics) can exist, so we provide this generic wrapper function.
 // This is a common pattern in Go for working around this language limitation.
-func InTransactionT[T any](ctx context.Context, db Database, fn func(ctx context.Context, tx pgx.Tx) (T, error)) (T, error) {
+func InTransactionT[T any](ctx context.Context, db Database, fn func(ctx context.Context, tx Tx) (T, error)) (T, error) {
 	var result T
 	var fnErr error
 
-	err := db.InTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+	err := db.InTransaction(ctx, func(txCtx context.Context, tx Tx) error {
 		result, fnErr = fn(txCtx, tx)
 		return fnErr
 	})
