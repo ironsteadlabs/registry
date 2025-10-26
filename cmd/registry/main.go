@@ -62,7 +62,7 @@ func main() {
 	defer cancel()
 
 	// Connect to PostgreSQL
-	db, err = database.NewPostgreSQL(ctx, cfg.DatabaseURL)
+	db, err = database.NewPostgreSQL(ctx, cfg.Database.URL)
 	if err != nil {
 		log.Printf("Failed to connect to PostgreSQL: %v", err)
 		return
@@ -80,18 +80,18 @@ func main() {
 	registryService = service.NewRegistryService(db, cfg)
 
 	// Import seed data if seed source is provided
-	if cfg.SeedFrom != "" {
-		log.Printf("Importing data from %s...", cfg.SeedFrom)
+	if cfg.Database.SeedFrom != "" {
+		log.Printf("Importing data from %s...", cfg.Database.SeedFrom)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
 		importerService := importer.NewService(registryService)
-		if err := importerService.ImportFromPath(ctx, cfg.SeedFrom); err != nil {
+		if err := importerService.ImportFromPath(ctx, cfg.Database.SeedFrom); err != nil {
 			log.Printf("Failed to import seed data: %v", err)
 		}
 	}
 
-	shutdownTelemetry, metrics, err := telemetry.InitMetrics(cfg.Version)
+	shutdownTelemetry, metrics, err := telemetry.InitMetrics(cfg.Telemetry.Version)
 	if err != nil {
 		log.Printf("Failed to initialize metrics: %v", err)
 		return

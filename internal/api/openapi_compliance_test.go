@@ -40,7 +40,11 @@ func TestOpenAPIEndpointCompliance(t *testing.T) {
 
 	// Create minimal config for testing
 	cfg := &config.Config{
-		JWTPrivateKey: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20", // 32-byte hex key
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20", // 32-byte hex key
+			},
+		},
 	}
 
 	// Create version info for testing

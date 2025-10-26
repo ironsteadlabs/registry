@@ -120,14 +120,14 @@ type OIDCHandler struct {
 
 // NewOIDCHandler creates a new OIDC handler
 func NewOIDCHandler(cfg *config.Config) *OIDCHandler {
-	if !cfg.OIDCEnabled {
+	if !cfg.Auth.OIDC.Enabled {
 		panic("OIDC is not enabled - should not create OIDC handler")
 	}
-	if cfg.OIDCIssuer == "" {
+	if cfg.Auth.OIDC.Issuer == "" {
 		panic("OIDC issuer is required when OIDC is enabled")
 	}
 
-	validator, err := NewStandardOIDCValidator(cfg.OIDCIssuer, cfg.OIDCClientID)
+	validator, err := NewStandardOIDCValidator(cfg.Auth.OIDC.Issuer, cfg.Auth.OIDC.ClientID)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize OIDC validator: %v", err))
 	}
@@ -146,7 +146,7 @@ func (h *OIDCHandler) SetValidator(validator GenericOIDCValidator) {
 
 // RegisterOIDCEndpoints registers all OIDC authentication endpoints
 func RegisterOIDCEndpoints(api huma.API, pathPrefix string, cfg *config.Config) {
-	if !cfg.OIDCEnabled {
+	if !cfg.Auth.OIDC.Enabled {
 		return // Skip registration if OIDC is not enabled
 	}
 
@@ -206,13 +206,13 @@ func (h *OIDCHandler) ExchangeToken(ctx context.Context, oidcToken string) (*aut
 
 // validateExtraClaims validates additional claims based on configuration
 func (h *OIDCHandler) validateExtraClaims(claims *OIDCClaims) error {
-	if h.config.OIDCExtraClaims == "" {
+	if h.config.Auth.OIDC.ExtraClaims == "" {
 		return nil // No extra validation required
 	}
 
 	// Parse extra claims configuration
 	var extraClaimsRules []map[string]any
-	if err := json.Unmarshal([]byte(h.config.OIDCExtraClaims), &extraClaimsRules); err != nil {
+	if err := json.Unmarshal([]byte(h.config.Auth.OIDC.ExtraClaims), &extraClaimsRules); err != nil {
 		return fmt.Errorf("invalid extra claims configuration: %w", err)
 	}
 
@@ -238,8 +238,8 @@ func (h *OIDCHandler) buildPermissions(_ *OIDCClaims) []auth.Permission {
 	var permissions []auth.Permission
 
 	// Parse permission patterns from configuration
-	if h.config.OIDCPublishPerms != "" {
-		for _, pattern := range strings.Split(h.config.OIDCPublishPerms, ",") {
+	if h.config.Auth.OIDC.PublishPerms != "" {
+		for _, pattern := range strings.Split(h.config.Auth.OIDC.PublishPerms, ",") {
 			pattern = strings.TrimSpace(pattern)
 			if pattern != "" {
 				permissions = append(permissions, auth.Permission{
@@ -250,8 +250,8 @@ func (h *OIDCHandler) buildPermissions(_ *OIDCClaims) []auth.Permission {
 		}
 	}
 
-	if h.config.OIDCEditPerms != "" {
-		for _, pattern := range strings.Split(h.config.OIDCEditPerms, ",") {
+	if h.config.Auth.OIDC.EditPerms != "" {
+		for _, pattern := range strings.Split(h.config.Auth.OIDC.EditPerms, ",") {
 			pattern = strings.TrimSpace(pattern)
 			if pattern != "" {
 				permissions = append(permissions, auth.Permission{

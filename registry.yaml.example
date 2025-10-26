@@ -1,0 +1,78 @@
+# MCP Registry Configuration File
+# Copy this file to registry.yaml and customize for your environment
+# Environment variables take precedence over this file
+
+server:
+  address: ":8080"
+  readTimeout: 30s
+  writeTimeout: 30s
+  shutdownTimeout: 10s
+
+database:
+  # Database type: postgres, sqlserver, mysql, sqlite, dynamodb
+  type: postgres
+
+  # Connection URL
+  # Examples:
+  #   PostgreSQL: postgres://user:pass@localhost:5432/mcp_registry?sslmode=require
+  #   SQL Server: sqlserver://user:pass@localhost:1433?database=mcp_registry
+  #   MySQL: mysql://user:pass@localhost:3306/mcp_registry
+  #   SQLite: file:/path/to/database.db
+  url: postgres://localhost:5432/mcp-registry?sslmode=disable
+
+  # Connection pool settings
+  maxConnections: 30
+  minConnections: 5
+  maxIdleTime: 30m
+  maxLifetime: 2h
+  connectionTimeout: 10s
+
+  # Migrations
+  autoMigrate: true
+  migrationsPath: ""
+
+  # Database-specific settings
+  sslMode: prefer        # PostgreSQL/MySQL: disable, require, prefer, verify-ca, verify-full
+  encrypt: true          # SQL Server: enable encryption
+  region: us-east-1      # DynamoDB: AWS region
+  tableName: mcp-registry-servers  # DynamoDB: table name
+  endpoint: ""           # DynamoDB: endpoint for local development
+
+  # Seed data (optional)
+  seedFrom: ""
+
+auth:
+  github:
+    # You can reference environment variables using ${VAR_NAME}
+    clientID: ${GITHUB_CLIENT_ID}
+    clientSecret: ${GITHUB_CLIENT_SECRET}
+
+  jwt:
+    privateKey: ${JWT_PRIVATE_KEY}
+
+  oidc:
+    enabled: false
+    issuer: ""
+    clientID: ""
+    extraClaims: ""
+    editPerms: ""
+    publishPerms: ""
+
+features:
+  enableAnonymousAuth: false
+  enableRegistryValidation: true
+
+telemetry:
+  version: dev
+
+# Future additions (not yet implemented)
+# cache:
+#   type: redis
+#   enabled: false
+#   url: redis://localhost:6379
+#   ttl: 1h
+#
+# queue:
+#   type: rabbitmq
+#   enabled: false
+#   url: amqp://localhost:5672

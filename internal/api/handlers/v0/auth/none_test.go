@@ -21,8 +21,14 @@ func TestNoneHandler_GetAnonymousToken(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey:       hex.EncodeToString(testSeed),
-		EnableAnonymousAuth: true,
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
+		Features: config.FeatureFlags{
+			EnableAnonymousAuth: true,
+		},
 	}
 
 	handler := v0auth.NewNoneHandler(cfg)

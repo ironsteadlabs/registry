@@ -43,7 +43,7 @@ func TestValidateNoDuplicateRemoteURLs(t *testing.T) {
 	}
 
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	// Create existing servers using the new CreateServer method
 	for _, server := range existingServers {
@@ -130,7 +130,7 @@ func TestValidateNoDuplicateRemoteURLs(t *testing.T) {
 func TestGetServerByName(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	// Create multiple versions of the same server
 	_, err := service.CreateServer(ctx, &apiv0.ServerJSON{
@@ -199,7 +199,7 @@ func TestGetServerByName(t *testing.T) {
 func TestGetServerByNameAndVersion(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	serverName := "com.example/versioned-server"
 
@@ -292,7 +292,7 @@ func TestGetServerByNameAndVersion(t *testing.T) {
 func TestGetAllVersionsByServerName(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	serverName := "com.example/multi-version-server"
 
@@ -388,7 +388,7 @@ func TestGetAllVersionsByServerName(t *testing.T) {
 func TestCreateServerConcurrentVersionsNoRace(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	const concurrency = 100
 	serverName := "com.example/test-concurrent"
@@ -444,7 +444,7 @@ func TestCreateServerConcurrentVersionsNoRace(t *testing.T) {
 func TestUpdateServer(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	serverName := "com.example/update-test-server"
 	version := "1.0.0"
@@ -551,7 +551,7 @@ func TestUpdateServer_SkipValidationForDeletedServers(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
 	// Enable registry validation to test that it gets skipped for deleted servers
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: true})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: true}})
 
 	serverName := "com.example/validation-skip-test"
 	version := "1.0.0"
@@ -573,11 +573,11 @@ func TestUpdateServer_SkipValidationForDeletedServers(t *testing.T) {
 	}
 
 	// Create initial server (validation disabled for creation in this test)
-	originalConfig := service.(*registryServiceImpl).cfg.EnableRegistryValidation
-	service.(*registryServiceImpl).cfg.EnableRegistryValidation = false
+	originalConfig := service.(*registryServiceImpl).cfg.Features.EnableRegistryValidation
+	service.(*registryServiceImpl).cfg.Features.EnableRegistryValidation = false
 	_, err := service.CreateServer(ctx, invalidServer)
 	require.NoError(t, err, "failed to create server with validation disabled")
-	service.(*registryServiceImpl).cfg.EnableRegistryValidation = originalConfig
+	service.(*registryServiceImpl).cfg.Features.EnableRegistryValidation = originalConfig
 
 	// First, set server to deleted status
 	deletedStatus := string(model.StatusDeleted)
@@ -629,10 +629,10 @@ func TestUpdateServer_SkipValidationForDeletedServers(t *testing.T) {
 	}
 
 	// Create active server (with validation disabled)
-	service.(*registryServiceImpl).cfg.EnableRegistryValidation = false
+	service.(*registryServiceImpl).cfg.Features.EnableRegistryValidation = false
 	_, err = service.CreateServer(ctx, activeServer)
 	require.NoError(t, err)
-	service.(*registryServiceImpl).cfg.EnableRegistryValidation = originalConfig
+	service.(*registryServiceImpl).cfg.Features.EnableRegistryValidation = originalConfig
 
 	// Update server and set to deleted in same operation - should skip validation
 	newDeletedStatus := string(model.StatusDeleted)
@@ -645,7 +645,7 @@ func TestUpdateServer_SkipValidationForDeletedServers(t *testing.T) {
 func TestListServers(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	// Create test servers
 	testServers := []struct {
@@ -737,7 +737,7 @@ func TestListServers(t *testing.T) {
 func TestVersionComparison(t *testing.T) {
 	ctx := context.Background()
 	testDB := database.NewTestDB(t)
-	service := NewRegistryService(testDB, &config.Config{EnableRegistryValidation: false})
+	service := NewRegistryService(testDB, &config.Config{Features: config.FeatureFlags{EnableRegistryValidation: false}})
 
 	serverName := "com.example/version-comparison-server"
 

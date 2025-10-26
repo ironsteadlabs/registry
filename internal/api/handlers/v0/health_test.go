@@ -26,7 +26,11 @@ func TestHealthEndpoint(t *testing.T) {
 		{
 			name: "returns health status with github client id",
 			config: &config.Config{
-				GithubClientID: "test-github-client-id",
+				Auth: config.AuthConfig{
+					GitHub: config.GithubAuthConfig{
+						ClientID: "test-github-client-id",
+					},
+				},
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: v0.HealthBody{
@@ -37,7 +41,11 @@ func TestHealthEndpoint(t *testing.T) {
 		{
 			name: "returns health status without github client id",
 			config: &config.Config{
-				GithubClientID: "",
+				Auth: config.AuthConfig{
+					GitHub: config.GithubAuthConfig{
+						ClientID: "",
+					},
+				},
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: v0.HealthBody{
@@ -76,7 +84,7 @@ func TestHealthEndpoint(t *testing.T) {
 			body := w.Body.String()
 			assert.Contains(t, body, `"status":"ok"`)
 
-			if tc.config.GithubClientID != "" {
+			if tc.config.GithubClientID() != "" {
 				assert.Contains(t, body, `"github_client_id":"test-github-client-id"`)
 			} else {
 				assert.NotContains(t, body, `"github_client_id"`)

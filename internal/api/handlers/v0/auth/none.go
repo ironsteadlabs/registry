@@ -30,7 +30,7 @@ func NewNoneHandler(cfg *config.Config) *NoneHandler {
 // WARNING: This endpoint is intended for local development and automated tests only.
 // It should NOT be enabled in production environments as it bypasses normal authentication.
 func RegisterNoneEndpoint(api huma.API, pathPrefix string, cfg *config.Config) {
-	if !cfg.EnableAnonymousAuth {
+	if !cfg.Features.EnableAnonymousAuth {
 		return
 	}
 

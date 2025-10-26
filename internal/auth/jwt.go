@@ -48,7 +48,7 @@ type JWTManager struct {
 }
 
 func NewJWTManager(cfg *config.Config) *JWTManager {
-	seed, err := hex.DecodeString(cfg.JWTPrivateKey)
+	seed, err := hex.DecodeString(cfg.Auth.JWT.PrivateKey)
 	if err != nil {
 		panic(fmt.Sprintf("JWTPrivateKey must be a valid hex-encoded string: %v", err))
 	}

@@ -26,7 +26,11 @@ func (m *MockOIDCValidator) ValidateToken(ctx context.Context, token string, aud
 
 func TestGitHubOIDCHandler_ExchangeToken(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", // 32 bytes hex
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", // 32 bytes hex
+			},
+		},
 	}
 
 	handler := auth.NewGitHubOIDCHandler(cfg)
@@ -120,7 +124,11 @@ func TestGitHubOIDCHandler_ExchangeToken(t *testing.T) {
 
 func TestBuildPermissionsFromOIDC(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewGitHubOIDCHandler(cfg)
 

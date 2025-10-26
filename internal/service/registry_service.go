@@ -252,7 +252,7 @@ func (s *registryServiceImpl) validateUpdateRequest(ctx context.Context, req api
 	}
 
 	// Skip registry validation if requested (for deleted servers)
-	if skipRegistryValidation || !s.cfg.EnableRegistryValidation {
+	if skipRegistryValidation || !s.cfg.Features.EnableRegistryValidation {
 		return nil
 	}
 

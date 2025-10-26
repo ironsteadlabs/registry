@@ -1666,7 +1666,9 @@ func TestValidate_RegistryTypesAndUrls(t *testing.T) {
 			}
 
 			err := validators.ValidatePublishRequest(context.Background(), serverJSON, &config.Config{
-				EnableRegistryValidation: true,
+				Features: config.FeatureFlags{
+					EnableRegistryValidation: true,
+				},
 			})
 			if tc.expectError {
 				assert.Error(t, err)

@@ -41,8 +41,14 @@ func TestPublishIntegration(t *testing.T) {
 	_, err := rand.Read(testSeed)
 	require.NoError(t, err)
 	testConfig := &config.Config{
-		JWTPrivateKey:            hex.EncodeToString(testSeed),
-		EnableRegistryValidation: false, // Disable for integration tests
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
+		Features: config.FeatureFlags{
+			EnableRegistryValidation: false, // Disable for integration tests
+		},
 	}
 
 	// Setup fake service

@@ -62,7 +62,11 @@ func signWithECDSAP384(t *testing.T, privateKey *ecdsa.PrivateKey, message []byt
 
 func TestDNSAuthHandler_ExchangeToken(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 
@@ -226,7 +230,11 @@ func TestDNSAuthHandler_ExchangeToken(t *testing.T) {
 
 func TestDNSAuthHandler_Permissions(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -386,7 +394,11 @@ func TestDNSAuthHandler_Permissions(t *testing.T) {
 
 func TestDNSAuthHandler_PermissionValidation(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -490,7 +502,11 @@ func TestDNSAuthHandler_PermissionValidation(t *testing.T) {
 
 func TestDNSAuthHandler_ExchangeToken_ECDSAP384(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 
@@ -662,7 +678,11 @@ func TestDNSAuthHandler_ExchangeToken_ECDSAP384(t *testing.T) {
 
 func TestDNSAuthHandler_ECDSAP384_Permissions(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -757,7 +777,11 @@ func TestDNSAuthHandler_ECDSAP384_Permissions(t *testing.T) {
 
 func TestDNSAuthHandler_ECDSAP384_PermissionValidation(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -841,7 +865,11 @@ func TestDNSAuthHandler_ECDSAP384_PermissionValidation(t *testing.T) {
 
 func TestDNSAuthHandler_Ed25519_vs_ECDSAP384_Equivalence(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -928,7 +956,11 @@ func TestDNSAuthHandler_Ed25519_vs_ECDSAP384_Equivalence(t *testing.T) {
 
 func TestDNSAuthHandler_Mixed_Algorithm_Support(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewDNSAuthHandler(cfg)
 

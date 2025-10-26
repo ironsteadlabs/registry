@@ -34,12 +34,18 @@ func TestOIDCHandler_ExchangeToken(t *testing.T) {
 		{
 			name: "successful token exchange with publish permissions",
 			config: &config.Config{
-				OIDCEnabled:      true,
-				OIDCIssuer:       "https://accounts.google.com",
-				OIDCClientID:     "test-client-id",
-				OIDCExtraClaims:  `[{"hd":"modelcontextprotocol.io"}]`,
-				OIDCPublishPerms: "*",
-				JWTPrivateKey:    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", // 32 byte hex
+				Auth: config.AuthConfig{
+					OIDC: config.OIDCConfig{
+						Enabled:      true,
+						Issuer:       "https://accounts.google.com",
+						ClientID:     "test-client-id",
+						ExtraClaims:  `[{"hd":"modelcontextprotocol.io"}]`,
+						PublishPerms: "*",
+					},
+					JWT: config.JWTConfig{
+						PrivateKey: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", // 32 byte hex
+					},
+				},
 			},
 			mockValidator: &MockGenericOIDCValidator{
 				validateFunc: func(_ context.Context, _ string) (*auth.OIDCClaims, error) {
@@ -59,12 +65,18 @@ func TestOIDCHandler_ExchangeToken(t *testing.T) {
 		{
 			name: "failed validation with invalid hosted domain",
 			config: &config.Config{
-				OIDCEnabled:      true,
-				OIDCIssuer:       "https://accounts.google.com",
-				OIDCClientID:     "test-client-id",
-				OIDCExtraClaims:  `[{"hd":"modelcontextprotocol.io"}]`,
-				OIDCPublishPerms: "*",
-				JWTPrivateKey:    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+				Auth: config.AuthConfig{
+					OIDC: config.OIDCConfig{
+						Enabled:      true,
+						Issuer:       "https://accounts.google.com",
+						ClientID:     "test-client-id",
+						ExtraClaims:  `[{"hd":"modelcontextprotocol.io"}]`,
+						PublishPerms: "*",
+					},
+					JWT: config.JWTConfig{
+						PrivateKey: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+					},
+				},
 			},
 			mockValidator: &MockGenericOIDCValidator{
 				validateFunc: func(_ context.Context, _ string) (*auth.OIDCClaims, error) {

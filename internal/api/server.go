@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -57,9 +56,10 @@ func NewServer(cfg *config.Config, registryService service.RegistryService, metr
 		registry: registryService,
 		humaAPI:  api,
 		server: &http.Server{
-			Addr:              cfg.ServerAddress,
+			Addr:              cfg.Server.Address,
 			Handler:           handler,
-			ReadHeaderTimeout: 10 * time.Second,
+			ReadHeaderTimeout: cfg.Server.ReadTimeout,
+			WriteTimeout:      cfg.Server.WriteTimeout,
 		},
 	}
 
@@ -68,7 +68,7 @@ func NewServer(cfg *config.Config, registryService service.RegistryService, metr
 
 // Start begins listening for incoming HTTP requests
 func (s *Server) Start() error {
-	log.Printf("HTTP server starting on %s", s.config.ServerAddress)
+	log.Printf("HTTP server starting on %s", s.config.Server.Address)
 	return s.server.ListenAndServe()
 }
 

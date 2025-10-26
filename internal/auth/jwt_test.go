@@ -22,7 +22,11 @@ func TestJWTManager_GenerateAndVerifyToken(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	jwtManager := auth.NewJWTManager(cfg)
@@ -120,7 +124,11 @@ func TestJWTManager_GenerateAndVerifyToken(t *testing.T) {
 		require.NoError(t, err)
 
 		differentCfg := &config.Config{
-			JWTPrivateKey: hex.EncodeToString(differentSeed),
+			Auth: config.AuthConfig{
+				JWT: config.JWTConfig{
+					PrivateKey: hex.EncodeToString(differentSeed),
+				},
+			},
 		}
 		differentJWTManager := auth.NewJWTManager(differentCfg)
 
@@ -187,7 +195,11 @@ func TestJWTManager_HasPermission(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	jwtManager := auth.NewJWTManager(cfg)
@@ -275,7 +287,11 @@ func TestJWTManager_HasPermission(t *testing.T) {
 func TestNewJWTManager_InvalidKeySize(t *testing.T) {
 	// Test with invalid key size (should panic)
 	cfg := &config.Config{
-		JWTPrivateKey: "too-short-key",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "too-short-key",
+			},
+		},
 	}
 
 	assert.Panics(t, func() {
@@ -290,7 +306,11 @@ func TestJWTManager_BlockedNamespaces(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	ctx := context.Background()

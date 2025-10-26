@@ -32,8 +32,14 @@ func TestEditServerEndpoint(t *testing.T) {
 	_, err := rand.Read(testSeed)
 	require.NoError(t, err)
 	cfg := &config.Config{
-		JWTPrivateKey:            hex.EncodeToString(testSeed),
-		EnableRegistryValidation: false,
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
+		Features: config.FeatureFlags{
+			EnableRegistryValidation: false,
+		},
 	}
 
 	// Create registry service and test data
@@ -426,8 +432,14 @@ func TestEditServerEndpointEdgeCases(t *testing.T) {
 	_, err := rand.Read(testSeed)
 	require.NoError(t, err)
 	cfg := &config.Config{
-		JWTPrivateKey:            hex.EncodeToString(testSeed),
-		EnableRegistryValidation: false,
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
+		Features: config.FeatureFlags{
+			EnableRegistryValidation: false,
+		},
 	}
 
 	// Create registry service

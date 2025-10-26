@@ -89,7 +89,11 @@ func signWithECDSAP384HTTP(t *testing.T, privateKey *ecdsa.PrivateKey, message [
 
 func TestHTTPAuthHandler_ExchangeToken(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 
@@ -418,7 +422,11 @@ func TestDefaultHTTPKeyFetcher(t *testing.T) {
 
 func TestHTTPAuthHandler_Permissions(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -575,7 +583,11 @@ func TestHTTPAuthHandler_Permissions(t *testing.T) {
 
 func TestHTTPAuthHandler_PermissionValidation(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -677,7 +689,11 @@ func TestHTTPAuthHandler_PermissionValidation(t *testing.T) {
 
 func TestHTTPvsDNS_PermissionDifferences(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	httpHandler := auth.NewHTTPAuthHandler(cfg)
 	dnsHandler := auth.NewDNSAuthHandler(cfg)
@@ -768,7 +784,11 @@ func TestHTTPvsDNS_PermissionDifferences(t *testing.T) {
 }
 func TestHTTPAuthHandler_ExchangeToken_ECDSAP384(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 
@@ -952,7 +972,11 @@ func TestHTTPAuthHandler_ExchangeToken_ECDSAP384(t *testing.T) {
 
 func TestHTTPAuthHandler_ECDSAP384_Permissions(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -1075,7 +1099,11 @@ func TestHTTPAuthHandler_ECDSAP384_Permissions(t *testing.T) {
 
 func TestHTTPAuthHandler_ECDSAP384_PermissionValidation(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -1157,7 +1185,11 @@ func TestHTTPAuthHandler_ECDSAP384_PermissionValidation(t *testing.T) {
 
 func TestHTTPAuthHandler_Ed25519_vs_ECDSAP384_Equivalence(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 	jwtManager := intauth.NewJWTManager(cfg)
@@ -1240,7 +1272,11 @@ func TestHTTPAuthHandler_Ed25519_vs_ECDSAP384_Equivalence(t *testing.T) {
 
 func TestHTTPAuthHandler_Algorithm_Support(t *testing.T) {
 	cfg := &config.Config{
-		JWTPrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+		},
 	}
 	handler := auth.NewHTTPAuthHandler(cfg)
 

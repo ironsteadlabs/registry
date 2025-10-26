@@ -32,7 +32,11 @@ func TestGitHubHandler_ExchangeToken(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	t.Run("successful token exchange with user only", func(t *testing.T) {
@@ -323,7 +327,11 @@ func TestJWTTokenValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	jwtManager := auth.NewJWTManager(cfg)
@@ -403,7 +411,11 @@ func TestPermissionResourceMatching(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	jwtManager := auth.NewJWTManager(cfg)
@@ -474,7 +486,11 @@ func TestValidGitHubNames(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	validNameTests := []struct {
@@ -568,7 +584,11 @@ func TestGitHubHandler_Creation(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	handler := v0auth.NewGitHubHandler(cfg)
@@ -582,7 +602,11 @@ func TestConcurrentTokenExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &config.Config{
-		JWTPrivateKey: hex.EncodeToString(testSeed),
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
 	}
 
 	// Create mock GitHub API server

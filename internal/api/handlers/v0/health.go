@@ -30,12 +30,12 @@ func RegisterHealthEndpoint(api huma.API, pathPrefix string, cfg *config.Config,
 		Tags:        []string{"health"},
 	}, func(ctx context.Context, _ *struct{}) (*Response[HealthBody], error) {
 		// Record the health check metrics
-		recordHealthMetrics(ctx, metrics, pathPrefix+"/health", cfg.Version)
+		recordHealthMetrics(ctx, metrics, pathPrefix+"/health", cfg.Telemetry.Version)
 
 		return &Response[HealthBody]{
 			Body: HealthBody{
 				Status:         "ok",
-				GitHubClientID: cfg.GithubClientID,
+				GitHubClientID: cfg.Auth.GitHub.ClientID,
 			},
 		}, nil
 	})

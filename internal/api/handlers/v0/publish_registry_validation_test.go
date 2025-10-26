@@ -29,8 +29,14 @@ func TestPublishRegistryValidation(t *testing.T) {
 	_, err := rand.Read(testSeed)
 	require.NoError(t, err)
 	testConfig := &config.Config{
-		JWTPrivateKey:            hex.EncodeToString(testSeed),
-		EnableRegistryValidation: true, // Enable validation for this test
+		Auth: config.AuthConfig{
+			JWT: config.JWTConfig{
+				PrivateKey: hex.EncodeToString(testSeed),
+			},
+		},
+		Features: config.FeatureFlags{
+			EnableRegistryValidation: true, // Enable validation for this test
+		},
 	}
 
 	// Setup fake service
