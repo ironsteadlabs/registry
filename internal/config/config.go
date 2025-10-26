@@ -24,10 +24,6 @@ type Config struct {
 	OIDCExtraClaims  string `env:"OIDC_EXTRA_CLAIMS" envDefault:""`
 	OIDCEditPerms    string `env:"OIDC_EDIT_PERMISSIONS" envDefault:""`
 	OIDCPublishPerms string `env:"OIDC_PUBLISH_PERMISSIONS" envDefault:""`
-
-	// CORS Configuration
-	CORSEnabled       bool   `env:"CORS_ENABLED" envDefault:"true"`
-	CORSAllowedOrigin string `env:"CORS_ALLOWED_ORIGIN" envDefault:"*"`
 }
 
 // NewConfig creates a new configuration with default values
