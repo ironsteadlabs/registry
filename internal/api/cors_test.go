@@ -1,11 +1,15 @@
 package api_test
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/modelcontextprotocol/registry/internal/api"
 	v0 "github.com/modelcontextprotocol/registry/internal/api/handlers/v0"
@@ -16,8 +20,13 @@ import (
 )
 
 func TestCORSHeaders(t *testing.T) {
-	// Create test config
+	// Create test config with JWT private key
+	testSeed := make([]byte, ed25519.SeedSize)
+	_, err := rand.Read(testSeed)
+	require.NoError(t, err)
+
 	cfg := config.NewConfig()
+	cfg.JWTPrivateKey = hex.EncodeToString(testSeed)
 
 	// Create test services
 	db := database.NewTestDB(t)
@@ -125,8 +134,13 @@ func TestCORSHeaders(t *testing.T) {
 }
 
 func TestCORSHeaderValues(t *testing.T) {
-	// Create test config
+	// Create test config with JWT private key
+	testSeed := make([]byte, ed25519.SeedSize)
+	_, err := rand.Read(testSeed)
+	require.NoError(t, err)
+
 	cfg := config.NewConfig()
+	cfg.JWTPrivateKey = hex.EncodeToString(testSeed)
 
 	// Create test services
 	db := database.NewTestDB(t)
